@@ -75,6 +75,7 @@ local function ToggleBuffIcons(amount)
             end
         end
     end
+    ToggleIndicatorsMouse(not RaidFrameTweaksDB[currentLayout].clickThroughBuffs)
 end
 
 --Controls visibility on debuff icons
@@ -102,12 +103,13 @@ local function ToggleDebuffIcons(amount)
             end
         end
     end
+    ToggleIndicatorsMouse(not RaidFrameTweaksDB[currentLayout].clickThroughBuffs)
 end
 
 local function SetupSettings()
-    ToggleIndicatorsMouse(not RaidFrameTweaksDB[currentLayout].clickThroughBuffs)
     ToggleBuffIcons(RaidFrameTweaksDB[currentLayout].buffIcons)
     ToggleDebuffIcons(RaidFrameTweaksDB[currentLayout].debuffIcons)
+    ToggleIndicatorsMouse(not RaidFrameTweaksDB[currentLayout].clickThroughBuffs)
 end
 
 local eventTracker = CreateFrame('Frame')
