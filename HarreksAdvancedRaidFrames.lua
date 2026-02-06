@@ -36,6 +36,10 @@ local supportedBuffTracking = {
         }
     }
 }
+local spotlightAnchors = {
+    spotlights = {},
+    defaults = {}
+}
 local defaultSettings = {
     clickThroughBuffs = true,
     buffIcons = 6,
@@ -45,20 +49,15 @@ local defaultSettings = {
     colorNames = false,
     buffTracking = false,
     trackingType = 'icon',
-    trackingColor = { r = 0, g = 1, b = 0 }
+    trackingColor = { r = 0, g = 1, b = 0 },
+    spotlight = {
+        point = 'CENTER',
+        x = 0,
+        y = 0,
+        grow = 'Right',
+        names = {}
+    }
 }
-
---Function to format decimals out for display
-local function formatForDisplay(number)
-    return math.floor(number * 10 + 0.5) / 10
-end
-
---The addon uses some tables to keep track of unit frames and specific auras, every now and then we empty these tables to remove irrelevant data
---Currently this happens when we remap out frames to new units after a roster update, as the info is tied to a specific player occupying a specific frame
-local function CleanUtilityTables()
-    unitFrameMap = {}
-    supportedBuffTracking.EVOKER.utility.filteredBuffs = {}
-end
 
 --Build a list of strings that match the default frame elements
 local frameList = { party = {}, raid = {} }
@@ -97,14 +96,119 @@ for i = 1, 30 do
     end
 end
 
---[[----------------------------------
-    Core Functions
-------------------------------------]]
+--Function to format decimals out for display
+local function formatForDisplay(number)
+    return math.floor(number * 10 + 0.5) / 10
+end
+
+--The addon uses some tables to keep track of unit frames and specific auras, every now and then we empty these tables to remove irrelevant data
+--Currently this happens when we remap out frames to new units after a roster update, as the info is tied to a specific player occupying a specific frame
+local function CleanUtilityTables()
+    unitFrameMap = {}
+    supportedBuffTracking.EVOKER.utility.filteredBuffs = {}
+end
 
 --Return the list of raid frames depending on raid or party
 local function GetRelevantList()
     return IsInRaid() and frameList.raid or frameList.party
 end
+
+local function GetSpotlightNames()
+    if IsInRaid() then
+        local frames = GetRelevantList()
+        local raidNameList = {}
+        if currentLayout and HARFDB[currentLayout] and HARFDB[currentLayout].spotlight.names then
+            for name, _ in pairs(HARFDB[currentLayout].spotlight.names) do
+                table.insert(raidNameList, { text = name })
+            end
+        end
+        for frameString, _ in pairs(frames) do
+            if _G[frameString] then
+                local frame = _G[frameString]
+                local unitName = UnitName(frame.unit)
+                if not UnitIsUnit(frame.unit, 'player') and not HARFDB[currentLayout].spotlight.names[unitName] then
+                    table.insert(raidNameList, { text = unitName })
+                end
+            end
+        end
+        return raidNameList
+    else
+        return HARFDB[currentLayout].spotlight.names
+    end
+end
+
+local function MapSpotlightAnchors()
+    spotlightAnchors = { spotlights = {}, defaults = {} }
+    local units = HARFDB[currentLayout].spotlight.names
+    local frames = frameList.raid
+    for frameString, _ in pairs(frames) do
+        if _G[frameString] and _G[frameString].unit then
+            local currentFrame = _G[frameString]
+            local unit = currentFrame.unit
+            if unit ~= 'player' then
+                local unitName = UnitName(unit)
+                local frameIndex = frameString:gsub('CompactRaidFrame', '')
+                if units[unitName] then
+                    spotlightAnchors.spotlights[frameIndex] = frameString
+                else
+                    spotlightAnchors.defaults[frameIndex] = frameString
+                end
+            end
+        end
+    end
+    for type, list in pairs(spotlightAnchors) do
+        local framesIndexes = {}
+        for index in pairs(list) do
+            table.insert(framesIndexes, tonumber(index))
+        end
+        table.sort(framesIndexes)
+        local orderedFrameList = {}
+        local order = 1
+        for _, index in ipairs(framesIndexes) do
+            orderedFrameList[order] = list[tostring(index)]
+            order = order + 1
+        end
+        spotlightAnchors[type] = orderedFrameList
+    end
+end
+
+function ReanchorSpotlights()
+    for index, frameString in ipairs(spotlightAnchors.spotlights) do
+        local frame = _G[frameString]
+        frame:ClearAllPoints()
+        if index == 1 then
+            frame:SetPoint('TOP', 'AdvancedRaidFramesSpotlight', 'TOP')
+        else
+            local previousFrame = _G[spotlightAnchors.spotlights[index - 1]]
+            local childPoint, parentPoint
+            if HARFDB[currentLayout].spotlight.grow == 'right' then
+                childPoint, parentPoint = 'LEFT', 'RIGHT'
+            else
+                childPoint, parentPoint = 'TOP', 'BOTTOM'
+            end
+            frame:SetPoint(childPoint, previousFrame, parentPoint)
+        end
+    end
+    for index, frameString in ipairs(spotlightAnchors.defaults) do
+        local frame = _G[frameString]
+        frame:ClearAllPoints()
+        if index == 1 then
+            frame:SetPoint('TOPLEFT', 'CompactRaidFrameContainer', 'TOPLEFT')
+        else
+            if (index - 1) % 5 == 0 then
+                local previousFrame = _G[spotlightAnchors.defaults[index - 5]]
+                frame:SetPoint('TOP', previousFrame, 'BOTTOM')
+            else
+                local previousFrame = _G[spotlightAnchors.defaults[index - 1]]
+                frame:SetPoint('LEFT', previousFrame, 'RIGHT')
+            end
+        end
+    end
+end
+
+--[[----------------------------------
+    Core Functions
+------------------------------------]]
 
 --Takes a string, checks global table for frame with that name and changes mouse interaction on it
 local function ChangeFrameMouseInteraction(frameString, value)
@@ -195,30 +299,38 @@ function ScaleNames(value, _, elements)
     end
     if elements.customName then
         elements.customName:SetScale(value)
-        elements.customName:SetWidth(_G[elements.name]:GetWidth())
+        local width = _G[elements.name]:GetWidth()
+        if not issecretvalue(width) then
+            elements.customName:SetWidth(width)
+        end
     end
 end
 
 --Class coloring for names, value is true for class colored and false for defaults. takes frameString of the frame to modify and its elements
 function ColorNames(value, frameString, elements)
-    if _G[frameString] then
+    if _G[frameString] and _G[frameString].unit then
         local frame = _G[frameString]
         local nameFrame = _G[elements.name]
         local customName
         if not elements.customName then
             customName = frame:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
-            customName:SetPoint('TOPLEFT', nameFrame, 'TOPLEFT')
             local font, size, flags = frame.name:GetFont()
             customName:SetScale(nameFrame:GetScale())
             customName:SetFont(font, size, flags)
-            customName:SetWidth(nameFrame:GetWidth())
             customName:SetWordWrap(false)
-            customName:SetJustifyH('LEFT')
+            customName:SetWidth(nameFrame:GetWidth())
+            if string.find(frameString, 'Raid') then
+                customName:SetJustifyH('CENTER')
+                customName:SetPoint('CENTER', nameFrame, 'CENTER')
+            else
+                customName:SetJustifyH('LEFT')
+                customName:SetPoint('TOPLEFT', nameFrame, 'TOPLEFT')
+            end
             elements.customName = customName
         else
             customName = elements.customName
         end
-        customName:SetText(GetUnitName(frame.unit, true) or GetUnitName('player', true))
+        customName:SetText(GetUnitName(frame.unit, true))
         local _, class = UnitClass(frame.unit)
         if class then
             local color = RAID_CLASS_COLORS[class]
@@ -333,30 +445,38 @@ end
     Setup and Options
 ------------------------------------]]
 local function SetupSettings(modifiedSettingFunction, newValue)
-    local relevantFrameList = GetRelevantList()
-    local layoutInfo = HARFDB[currentLayout]
-    local functionsToRun = {}
-    if not modifiedSettingFunction or modifiedSettingFunction == MapOutUnits then
-        if playerClass == 'PRIEST' and layoutInfo.buffTracking then
-            supportedBuffTracking.PRIEST.utility.isDisc = C_SpecializationInfo.GetSpecialization() == 1
+    if not InCombatLockdown() then
+        local relevantFrameList = GetRelevantList()
+        local layoutInfo = HARFDB[currentLayout]
+        local functionsToRun = {}
+        if not modifiedSettingFunction or modifiedSettingFunction == MapOutUnits then
+            if playerClass == 'PRIEST' and layoutInfo.buffTracking then
+                supportedBuffTracking.PRIEST.utility.isDisc = C_SpecializationInfo.GetSpecialization() == 1
+            end
+            CleanUtilityTables()
         end
-        CleanUtilityTables()
-    end
-    if modifiedSettingFunction and type(modifiedSettingFunction) == 'function' then
-        table.insert(functionsToRun, { func = modifiedSettingFunction, val = newValue } )
-    else
-        table.insert(functionsToRun, { func = ToggleBuffIcons, val = layoutInfo.buffIcons } )
-        table.insert(functionsToRun, { func = ToggleDebuffIcons, val = layoutInfo.debuffIcons } )
-        table.insert(functionsToRun, { func = ToggleAurasMouseInteraction, val = not layoutInfo.clickThroughBuffs } )
-        table.insert(functionsToRun, { func = SetGroupFrameTransparency, val = layoutInfo.frameTransparency } )
-        table.insert(functionsToRun, { func = ScaleNames, val = layoutInfo.nameScale } )
-        table.insert(functionsToRun, { func = ColorNames, val = layoutInfo.colorNames } )
-        table.insert(functionsToRun, { func = MapOutUnits, val = layoutInfo.buffTracking } )
-    end
 
-    for frameString, elements in pairs(relevantFrameList) do
-        for _, functionData in ipairs(functionsToRun) do
-            functionData.func(functionData.val, frameString, elements)
+        if modifiedSettingFunction and type(modifiedSettingFunction) == 'function' then
+            table.insert(functionsToRun, { func = modifiedSettingFunction, val = newValue } )
+        else
+            table.insert(functionsToRun, { func = ToggleBuffIcons, val = layoutInfo.buffIcons } )
+            table.insert(functionsToRun, { func = ToggleDebuffIcons, val = layoutInfo.debuffIcons } )
+            table.insert(functionsToRun, { func = ToggleAurasMouseInteraction, val = not layoutInfo.clickThroughBuffs } )
+            table.insert(functionsToRun, { func = SetGroupFrameTransparency, val = layoutInfo.frameTransparency } )
+            table.insert(functionsToRun, { func = ScaleNames, val = layoutInfo.nameScale } )
+            table.insert(functionsToRun, { func = ColorNames, val = layoutInfo.colorNames } )
+            table.insert(functionsToRun, { func = MapOutUnits, val = layoutInfo.buffTracking } )
+        end
+
+        for frameString, elements in pairs(relevantFrameList) do
+            for _, functionData in ipairs(functionsToRun) do
+                functionData.func(functionData.val, frameString, elements)
+            end
+        end
+
+        if IsInRaid() and HARFDB[currentLayout].spotlight.names then
+            MapSpotlightAnchors()
+            ReanchorSpotlights()
         end
     end
 end
@@ -368,6 +488,14 @@ clickableOptionsFrame.text = clickableOptionsFrame:CreateFontString(nil, 'OVERLA
 clickableOptionsFrame.text:SetPoint("CENTER", clickableOptionsFrame, 'CENTER')
 clickableOptionsFrame.text:SetText('Advanced Raid Frames')
 clickableOptionsFrame:Hide()
+
+local spotlightOptionsFrame = CreateFrame('Frame', 'AdvancedRaidFramesSpotlight', UIParent, 'InsetFrameTemplate')
+spotlightOptionsFrame:SetSize(200, 50)
+spotlightOptionsFrame:SetPoint('CENTER', UIParent, 'CENTER')
+spotlightOptionsFrame.text = spotlightOptionsFrame:CreateFontString(nil, 'OVERLAY', 'GameFontHighlight')
+spotlightOptionsFrame.text:SetPoint("CENTER", spotlightOptionsFrame, 'CENTER')
+spotlightOptionsFrame.text:SetText('Advanced Raid Frames\nSpotlight')
+spotlightOptionsFrame:SetAlpha(0)
 
 local trackedEvents = {
     'PLAYER_LOGIN',
@@ -389,10 +517,15 @@ eventTracker:SetScript('OnEvent', function(self, event, ...)
 
         LEM:RegisterCallback('enter', function()
             clickableOptionsFrame:Show()
+            spotlightOptionsFrame:SetAlpha(1)
         end)
 
         LEM:RegisterCallback('exit', function()
             clickableOptionsFrame:Hide()
+            spotlightOptionsFrame:SetAlpha(0)
+            if IsInRaid() and not InCombatLockdown() and HARFDB[currentLayout].spotlight.names then
+                ReanchorSpotlights()
+            end
         end)
 
         LEM:RegisterCallback('layout', function(layout)
@@ -407,6 +540,8 @@ eventTracker:SetScript('OnEvent', function(self, event, ...)
                 end
             end
             SetupSettings()
+
+            spotlightOptionsFrame:SetPoint(HARFDB[layout].spotlight.point, HARFDB[layout].spotlight.x, HARFDB[layout].spotlight.y)
         end)
 
         local options = {
@@ -518,7 +653,7 @@ eventTracker:SetScript('OnEvent', function(self, event, ...)
                     name = 'Tracking Type',
                     kind = LEM.SettingType.Dropdown,
                     default = defaultSettings.trackingType,
-                    desc = 'asd dada',
+                    desc = 'Choose how to track the buffs.',
                     get = function(layout)
                         return HARFDB[layout].trackingType
                     end,
@@ -555,6 +690,53 @@ eventTracker:SetScript('OnEvent', function(self, event, ...)
             frame:SetPoint("TOPRIGHT", CompactPartyFrame, "TOPLEFT", -5, 0)
         end, { point = 'CENTER', x = 0, y = 0})
         LEM:AddFrameSettings(clickableOptionsFrame, options)
+
+        LEM:AddFrame(spotlightOptionsFrame, function(frame, layout, point, x, y)
+            HARFDB[layout].spotlight.point = point
+            HARFDB[layout].spotlight.x = x
+            HARFDB[layout].spotlight.y = y
+        end)
+        LEM:AddFrameSettings(spotlightOptionsFrame, {
+            {
+                name = 'Player List',
+                kind = LEM.SettingType.Dropdown,
+                default = defaultSettings.spotlight.names,
+                desc = 'Select the players to be shown in the spotlight',
+                multiple = true,
+                get = function(layout)
+                    local nameList = {}
+                    for name, _ in pairs(HARFDB[layout].spotlight.names) do
+                        table.insert(nameList, name)
+                    end
+                    return nameList
+                end,
+                set = function(layout, value)
+                    if HARFDB[layout].spotlight.names[value] then
+                        HARFDB[layout].spotlight.names[value] = nil
+                    else
+                        HARFDB[layout].spotlight.names[value] = true
+                    end
+                    MapSpotlightAnchors()
+                end,
+                values = GetSpotlightNames()
+            },
+            {
+                name = 'Grow Direction',
+                kind = LEM.SettingType.Dropdown,
+                default = defaultSettings.spotlight.grow,
+                desc = 'Grow direction for the spotlight frames',
+                get = function(layout)
+                    return HARFDB[layout].spotlight.grow
+                end,
+                set = function(layout, value)
+                    HARFDB[layout].spotlight.grow = value
+                end,
+                values = {
+                    { text = 'Right', value = 'right' },
+                    { text = 'Bottom', value = 'bottom' }
+                }
+            }
+        })
 
     elseif event == 'GROUP_ROSTER_UPDATE' then
 

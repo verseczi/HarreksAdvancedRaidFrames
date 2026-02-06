@@ -21,5 +21,5 @@ Implement improvements and extra functionality to Blizzard's party and raid fram
 
 # Known Bugs
 
-- Buff tracking is experimental and relies on assumptions and logic, as such it might sometimes trigger false positives or false negatives. It's accuracy is being actively worked on and more specs might be added when the environment allows it. For details on the implementation check BLOGPOSTLINK.
+- Buff tracking is experimental and relies on assumptions and logic, as such it might sometimes trigger false positives or false negatives. It's accuracy is being actively worked on and more specs might be added when the environment allows it. For details on the implementation check [here](https://spiritbloom.pro/blog/tracking-buffs-in-midnight).
 - Changing the "Display Class Colors" option from the default Blizzard settings without triggering a GROUP_ROSTER_UPDATE event might cause some frames to recolor unintendedly. Reloading the UI or changing the group will fix this.
