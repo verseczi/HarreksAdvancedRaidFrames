@@ -2,20 +2,16 @@ local _, NS = ...
 local Data = NS.Data
 local Util = NS.Util
 local Core = NS.Core
-local Settings = NS.Settings
+local Opt = NS.Opt
 
 --Initialize default data
 Data.gameVersion = select(4, GetBuildInfo())
-Data.currentLayout = nil
 Data.unitFrameMap = {}
+Data.initializerList = {}
 Data.playerClass = nil
 Data.allowedCastDelay = 0.25
 Data.buffFilter = 'PLAYER|HELPFUL|RAID_IN_COMBAT'
 Data.supportedBuffTracking = {
-    --[[
-    Riptide
-    Earth Shield
-    ]]
     SHAMAN = {
         spell = 'Riptide',
         utility = {
@@ -23,12 +19,6 @@ Data.supportedBuffTracking = {
             activeAuras = {}
         }
     },
-    --[[
-    Echo
-    Reversion (both)
-    Dream Breath (both)
-    Time Dilation
-    ]]
     EVOKER = {
         spell = 'Echo',
         utility = {
@@ -54,19 +44,18 @@ Data.supportedBuffTracking = {
             activeAuras = {}
         }
     },
-    --[[
-    Atonement
-    Pain Suppression
-    Power Word: Shield
-    Void Shield
-    ]]
     PRIEST = {
         spell = 'Atonement',
         utility = {
             isDisc = false,
             filteredSpellTimestamp = nil,
+            --Disc works the other way around, tracks the casts that apply atonement
             filteredSpells = {
-                [33206] = true
+                [200829] = true,
+                [2061] = true,
+                [17] = true,
+                [47540] = true,
+                [194509] = true
             },
             filteredBuffs = {},
             activeAuras = {}
@@ -74,30 +63,112 @@ Data.supportedBuffTracking = {
     }
 }
 
-Data.dandersColors = {}
-
 Data.spotlightAnchors = {
     spotlights = {},
-    defaults = {}
+    defaults = {},
 }
 
-Data.defaultSettings = {
-    clickThroughBuffs = true,
-    buffIcons = 6,
-    debuffIcons = 3,
-    frameTransparency = false,
-    nameScale = 1,
-    colorNames = false,
-    buffTracking = false,
-    trackingType = 'icon',
-    trackingColor = { r = 0, g = 1, b = 0 },
-    dandersCompat = false,
-    spotlight = {
-        point = 'CENTER',
-        x = 0,
-        y = 0,
-        grow = 'right',
-        names = {}
+Data.settings = {
+    {
+        key = 'clickThroughBuffs',
+        type = 'checkbox',
+        text = 'Click Through Aura Icons',
+        default = true,
+        tooltip = 'Disables mouse interaction on the aura icons on the frame, letting you mouseover and click through them.',
+        func = 'ToggleAurasMouseInteraction'
+    },
+    {
+        key = 'buffIcons',
+        type = 'slider',
+        text = 'Buff Icons',
+        min = 0,
+        max = 6,
+        step = 1,
+        default = 6,
+        tooltip = 'Changes the maximum amount of buff icons on the default frames.',
+        func = 'ToggleBuffIcons'
+    },
+    {
+        key = 'debuffIcons',
+        type = 'slider',
+        text = 'Debuff Icons',
+        min = 0,
+        max = 3,
+        step = 1,
+        default = 3,
+        tooltip = 'Changes the maximum amount of debuff icons on the default frames.',
+        func = 'ToggleDebuffIcons'
+    },
+    {
+        key = 'frameTransparency',
+        type = 'checkbox',
+        text = 'Frame Transparency',
+        default = false,
+        tooltip = 'Disabling frame transparency keeps the frame fully solid even when out of range.',
+        func = 'SetGroupFrameTransparency'
+    },
+    {
+        key = 'nameScale',
+        type = 'slider',
+        text = 'Name Size',
+        min = 0.5,
+        max = 3,
+        step = 0.1,
+        default = 1,
+        tooltip = 'Changes the size of the unit names.',
+        func = 'ScaleNames'
+    },
+    {
+        key = 'colorNames',
+        type = 'checkbox',
+        text = 'Class Colored Names',
+        default = false,
+        tooltip = 'Replaces the unit name for class-colored ones.',
+        func = 'ColorNames'
+    },
+    {
+        key = 'buffTrackingHeader',
+        type = 'header',
+        text = 'Advanced Buff Tracking'
+    },
+    {
+        key = 'buffTracking',
+        type = 'checkbox',
+        text = 'Buff Tracking',
+        default = true,
+        tooltip = 'Some specializations can track a specific buff better on their frames, this enables that tracking.',
+        func = 'MapOutUnits'
+    },
+    {
+        key = 'trackingType',
+        type = 'dropdown',
+        text = 'Tracking Type',
+        items = {
+            { text = 'Icon', value = 'icon' },
+            { text = 'Bar Recolor', value = 'color' }
+        },
+        default = 'color',
+        tooltip = 'Choose how to track the buffs.',
+        parent = 'buffTracking'
+    },
+    {
+        key = 'trackingColor',
+        type = 'color',
+        text = 'Tracking Color',
+        default = 'ff00ff00',
+        tooltip = 'Color to change the bars into when the buff is present.'
+    },
+    {
+        key = 'addonsHeader',
+        type = 'header',
+        text = 'Frame AddOn Compatibility'
+    },
+    {
+        key = 'dandersCompat',
+        type = 'checkbox',
+        text = 'DandersFrames Compatibility',
+        default = false,
+        tooltip = 'Enables highlighting on buffs for the addon frame.'
     }
 }
 

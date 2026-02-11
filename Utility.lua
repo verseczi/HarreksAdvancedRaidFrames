@@ -2,7 +2,7 @@ local _, NS = ...
 local Data = NS.Data
 local Util = NS.Util
 local Core = NS.Core
-local Settings = NS.Settings
+local Opt = NS.Opt
 
 --Function to format decimals out for display
 function Util.FormatForDisplay(number)
@@ -50,8 +50,8 @@ function Util.GetSpotlightNames()
     if IsInRaid() then
         local frames = Util.GetRelevantList()
         local raidNameList = {}
-        if Data.currentLayout and HARFDB[Data.currentLayout] and HARFDB[Data.currentLayout].spotlight.names then
-            for name, _ in pairs(HARFDB[Data.currentLayout].spotlight.names) do
+        if HARFDB.spotlight.names then
+            for name, _ in pairs(HARFDB.spotlight.names) do
                 table.insert(raidNameList, { text = name })
             end
         end
@@ -59,14 +59,14 @@ function Util.GetSpotlightNames()
             if _G[frameString] then
                 local frame = _G[frameString]
                 local unitName = UnitName(frame.unit)
-                if not UnitIsUnit(frame.unit, 'player') and not HARFDB[Data.currentLayout].spotlight.names[unitName] then
+                if not UnitIsUnit(frame.unit, 'player') and not HARFDB.spotlight.names[unitName] then
                     table.insert(raidNameList, { text = unitName })
                 end
             end
         end
         return raidNameList
     else
-        return HARFDB[Data.currentLayout].spotlight.names
+        return HARFDB.spotlight.names
     end
 end
 
@@ -75,7 +75,7 @@ function Util.MapSpotlightAnchors()
     --Reset the current lists
     wipe(Data.spotlightAnchors.spotlights)
     wipe(Data.spotlightAnchors.defaults)
-    local units = HARFDB[Data.currentLayout].spotlight.names
+    local units = HARFDB.spotlight.names
     local frames = Data.frameList.raid --Spotlight only works in raid
     for frameString, _ in pairs(frames) do
         if _G[frameString] and _G[frameString].unit then
@@ -125,7 +125,7 @@ function Util.ReanchorSpotlights()
         else
             local previousFrame = _G[Data.spotlightAnchors.spotlights[index - 1]]
             local childPoint, parentPoint
-            if HARFDB[Data.currentLayout].spotlight.grow == 'right' then
+            if HARFDB.spotlight.grow == 'right' then
                 childPoint, parentPoint = 'LEFT', 'RIGHT'
             else
                 childPoint, parentPoint = 'TOP', 'BOTTOM'
@@ -156,48 +156,118 @@ end
 function Util.DisplayTrackedBuff(unit, buff)
     --Get info to update visuals accordingly
     local elements = Util.GetRelevantList()[Data.unitFrameMap[unit]]
-    local buffIcon = elements.buffTrackingIcon
-    local frame = _G[Data.unitFrameMap[unit]]
-    local trackingType = HARFDB[Data.currentLayout].trackingType
-    local trackingColor = HARFDB[Data.currentLayout].trackingColor
-    --If the tracking is an icon we update it and show it
-    if trackingType == 'icon' and buff then
-        buffIcon.texture:SetTexture(buff.icon)
-        local duration = C_UnitAuras.GetAuraDuration(unit, buff.auraInstanceID)
-        buffIcon.cooldown:SetCooldownFromDurationObject(duration)
-        buffIcon:Show()
-    --If the tracking is bar recoloring we recolor the bar and mark it as colored in the elements
-    elseif trackingType == 'color' then
-        local healthBar = frame.healthBar
-        healthBar:SetStatusBarColor(trackingColor.r, trackingColor.g, trackingColor.b)
-        elements.isColored = true
-    end
-
-    if HARFDB[Data.currentLayout].dandersCompat and DandersFrames_IsReady and DandersFrames_IsReady() then
-        local danderFrame = DandersFrames_GetFrameForUnit(unit)
-        local r,g,b = danderFrame.healthBar:GetStatusBarColor()
-        if not Data.dandersColors[unit] then
-            Data.dandersColors[unit] = { r = r, g = g, b = b}
+    if elements then
+        local buffIcon = elements.buffTrackingIcon
+        local frame = _G[Data.unitFrameMap[unit]]
+        local trackingType = HARFDB.trackingType
+        local trackingColor = CreateColorFromHexString(HARFDB.trackingColor)
+        --If the tracking is an icon we update it and show it
+        if trackingType == 'icon' and buff then
+            buffIcon.texture:SetTexture(buff.icon)
+            local duration = C_UnitAuras.GetAuraDuration(unit, buff.auraInstanceID)
+            buffIcon.cooldown:SetCooldownFromDurationObject(duration)
+            buffIcon:Show()
+        --If the tracking is bar recoloring we recolor the bar and mark it as colored in the elements
+        elseif trackingType == 'color' then
+            local healthBar = frame.healthBar
+            healthBar:SetStatusBarColor(trackingColor.r, trackingColor.g, trackingColor.b)
+            elements.isColored = true
         end
-        danderFrame.healthBar:SetStatusBarColor(trackingColor.r, trackingColor.g, trackingColor.b)
+
+        if HARFDB.dandersCompat and DandersFrames_IsReady and DandersFrames_IsReady() then
+            DandersFrames_HighlightUnit(unit, trackingColor.r, trackingColor.g, trackingColor.b, trackingColor.a)
+        end
     end
 end
 
 function Util.HideTrackedBuff(unit)
     local elements = Util.GetRelevantList()[Data.unitFrameMap[unit]]
-    if elements then
+    local frame = _G[Data.unitFrameMap[unit]]
+    if elements and frame and frame.unit then
         local buffIcon = elements.buffTrackingIcon
-        local frame = _G[Data.unitFrameMap[unit]]
         buffIcon:Hide()
         elements.isColored = false
         CompactUnitFrame_UpdateHealthColor(frame)
 
-        if HARFDB[Data.currentLayout].dandersCompat and Data.dandersColors[unit] and DandersFrames_IsReady and DandersFrames_IsReady() then
-            local danderFrame = DandersFrames_GetFrameForUnit(unit)
-            local originalColor = Data.dandersColors[unit]
-            danderFrame.healthBar:SetStatusBarColor(originalColor.r, originalColor.g, originalColor.b)
-            Data.dandersColors[unit] = nil
+        if HARFDB.dandersCompat and DandersFrames_IsReady and DandersFrames_IsReady() then
+            DandersFrames_ClearHighlight(unit)
         end
+    end
+end
+
+function Util.CreateOptionsElement(data, parent)
+    local initializer = nil
+    if data.type == "header" then
+        initializer = Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name = data.text })
+        parent.layout:AddInitializer(initializer)
+        Data.initializerList[data.key] = initializer
+        return
+    elseif data.type == "button" then
+        local buttonData = {
+            name = data.text,
+            buttonText = data.content,
+            buttonClick = data.func,
+            tooltip = data.tooltip,
+            newTagID = nil,
+            gameDataFunc = nil
+        }
+        initializer =  Settings.CreateElementInitializer("SettingButtonControlTemplate", buttonData)
+        Data.initializerList[data.key] = initializer
+        parent.layout:AddInitializer(initializer)
+    else
+        if not HARFDB[data.key] then HARFDB[data.key] = data.default end
+        local input = Settings.RegisterAddOnSetting(parent.category, data.key, data.key, HARFDB, type(data.default), data.text, data.default)
+        input:SetValueChangedCallback(function(setting, value)
+            local settingKey = setting:GetVariable()
+            local func
+            for _, opt in ipairs(Data.settings) do
+                if opt.key == settingKey then
+                    func = opt.func
+                    break
+                end
+            end
+            if func and Core[func] then
+                Opt.SetupSettings(Core[func], value)
+            end
+        end)
+        if data.type == "checkbox" then
+            initializer = Settings.CreateCheckbox(parent.category, input, data.tooltip)
+            Data.initializerList[data.key] = initializer
+        elseif data.type == "dropdown" then
+            local function GetOptions()
+                local container = Settings.CreateControlTextContainer()
+                for _, item in ipairs(data.items) do
+                    container:Add(item.value, item.text)
+                end
+                return container:GetData()
+            end
+            initializer = Settings.CreateDropdown(parent.category, input, GetOptions, data.tooltip)
+            Data.initializerList[data.key] = initializer
+        elseif data.type == "slider" then
+            local options = Settings.CreateSliderOptions(data.min, data.max, data.step)
+            options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, Util.FormatForDisplay);
+            initializer = Settings.CreateSlider(parent.category, input, options, data.tooltip)
+            Data.initializerList[data.key] = initializer
+        elseif data.type == "color" then
+            initializer = Settings.CreateColorSwatch(parent.category, input, data.tooltip)
+            Data.initializerList[data.key] = initializer
+        end
+    end
+    if initializer and data.parent then
+        initializer:SetParentInitializer(Data.initializerList[data.parent], function() return HARFDB[data.parent] end)
+    end
+end
+
+function Util.CreateOptionsPanel(optionsTable)
+    local category, layout = Settings.RegisterVerticalLayoutCategory("Advanced Raid Frames");
+    for _, data in ipairs(optionsTable) do
+        Util.CreateOptionsElement(data, { category = category, layout = layout })
+    end
+    Settings.RegisterAddOnCategory(category)
+
+    SLASH_HARREKSADVANCEDRAIDFRAMES1 = "/harf"
+    SlashCmdList.HARREKSADVANCEDRAIDFRAMES = function()
+        Settings.OpenToCategory(category.ID)
     end
 end
 
@@ -206,13 +276,13 @@ hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
     --check if this unit frame is one of the ones we have mapped
     if frame.unit and Data.unitFrameMap[frame.unit] and
     --Confirm the addon is setup and we care about recoloring bars
-    Data.currentLayout and HARFDB[Data.currentLayout].buffTracking and HARFDB[Data.currentLayout].trackingType == 'color'
+    HARFDB.buffTracking and HARFDB.trackingType == 'color'
     then
         --See if this frame is supposed to be colored, if so recolor it
         local elements = Util.GetRelevantList()[Data.unitFrameMap[frame.unit]]
-        if elements.isColored then
+        if elements and elements.isColored then
             local healthBar = frame.healthBar
-            local trackingColor = HARFDB[Data.currentLayout].trackingColor
+            local trackingColor = CreateColorFromHexString(HARFDB.trackingColor)
             healthBar:SetStatusBarColor(trackingColor.r, trackingColor.g, trackingColor.b)
         end
     end

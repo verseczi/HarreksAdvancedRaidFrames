@@ -25,15 +25,15 @@ local Util = NS.Util
 ------------------------------------------------------------------------------------------------]]
 local Core = NS.Core
 ------------------------------------------------------------------------------------------------[[
---- Settings has the data about the settings and binds them to LibEditMode.
---- It creates the three main frames the addon uses: ClickableOptionsFrame, SpotlightFrame,
---- and EventTracker. ClickableOptionsFrame carries the option controls, SpotlightFrame has
+--- Options creates the settings on VerticalLayout and LibEditMode.
+--- It creates the two frames the addon uses: SpotlightFrame and EventTracker.
+--- The main settings are in the default options panel, SpotlightFrame has
 --- the settings for the spotlight and controls its anchor, the EventTracker sets up all
 --- the options on PLAYER_LOGIN, refreshes the settings on GROUP_ROSTER_UPDATE to make sure
 --- data matches the current group, and checks UNIT_SPELLCAST_SUCCEEDED to assist with
 --- buff tracking if the setting is enabled.
 ------------------------------------------------------------------------------------------------]]
-local Settings = NS.Settings
+local Opt = NS.Opt
 ------------------------------------------------------------------------------------------------[[
 --- Main is the last file to be loaded, by this point all the data is ready
 --- (including the saved variables due to `LoadSavedVariablesFirst: 1`)
@@ -42,8 +42,8 @@ local Settings = NS.Settings
 --- properly applied when the group changes.
 ------------------------------------------------------------------------------------------------]]
 for _, event in ipairs(Data.trackedEvents.general) do
-    Settings.eventTracker:RegisterEvent(event)
+    Opt.eventTracker:RegisterEvent(event)
 end
 for _, event in ipairs(Data.trackedEvents.player) do
-    Settings.eventTracker:RegisterUnitEvent(event, 'player')
+    Opt.eventTracker:RegisterUnitEvent(event, 'player')
 end

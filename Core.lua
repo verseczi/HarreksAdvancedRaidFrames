@@ -2,7 +2,7 @@ local _, NS = ...
 local Data = NS.Data
 local Util = NS.Util
 local Core = NS.Core
-local Settings = NS.Settings
+local Opt = NS.Opt
 
 --Takes a string, checks global table for frame with that name and changes mouse interaction on it
 function Core.ChangeFrameMouseInteraction(frameString, value)
@@ -50,7 +50,7 @@ function Core.ToggleBuffIcons(amount, _, elements)
     for i = 1, 6 do
         if i <= amount then
             Core.ToggleTransparency(elements.buffs[i], true)
-            if _G[elements.buffs[i]] and not _G[elements.buffs[i]]:IsMouseEnabled() and not HARFDB[Data.currentLayout].clickThroughBuffs then
+            if _G[elements.buffs[i]] and not _G[elements.buffs[i]]:IsMouseEnabled() and not HARFDB.clickThroughBuffs then
                 Core.ChangeFrameMouseInteraction(elements.buffs[i], true)
             end
         else
@@ -67,7 +67,7 @@ function Core.ToggleDebuffIcons(amount, _, elements)
     for i = 1, 3 do
         if i <= amount then
             Core.ToggleTransparency(elements.debuffs[i], true)
-            if _G[elements.debuffs[i]] and not _G[elements.debuffs[i]]:IsMouseEnabled() and not HARFDB[Data.currentLayout].clickThroughBuffs then
+            if _G[elements.debuffs[i]] and not _G[elements.debuffs[i]]:IsMouseEnabled() and not HARFDB.clickThroughBuffs then
                 Core.ChangeFrameMouseInteraction(elements.buffs[i], true)
             end
         else
@@ -146,7 +146,7 @@ end
 function Core.MapOutUnits(value, frameString, elements)
     if value and _G[frameString]then
         local unit = _G[frameString].unit
-        if unit and HARFDB[Data.currentLayout].buffTracking then
+        if unit and HARFDB.buffTracking then
             local frame = _G[frameString]
             Data.unitFrameMap[unit] = frameString
             if not elements.buffTrackingIcon then
@@ -161,6 +161,9 @@ function Core.MapOutUnits(value, frameString, elements)
                 buffIcon:Hide()
                 buffIcon:SetScript('OnEvent', function(_, _, unitId, auraUpdateInfo)
                     Core.CheckAuraStatus(unitId, auraUpdateInfo)
+                    if Util.Grid2Plugin and Util.Grid2Plugin.enabled then
+                        Util.Grid2Plugin:UpdateIndicators(unitId)
+                    end
                 end)
                 elements.buffTrackingIcon = buffIcon
             end
@@ -173,13 +176,15 @@ end
 
 --Check aura status to see if the unit has the relevant buff
 function Core.CheckAuraStatus(unit, updateInfo)
+    if not updateInfo then updateInfo = {} end
     local utilityTable = Data.supportedBuffTracking[Data.playerClass].utility
     local hasBuff = false
     local isPlayer = UnitIsUnit(unit, 'player')
     local trackedAura
     local currentTime = GetTime()
     --Check if the aura update time matches the timestamp of casting a filtered spell
-    if Util.AreTimestampsEqual(currentTime, utilityTable.filteredSpellTimestamp) and updateInfo.addedAuras then
+    --Priest is a special case, the tracking is reversed to find the auras applied by the casts
+    if not Data.playerClass == 'PRIEST' and Util.AreTimestampsEqual(currentTime, utilityTable.filteredSpellTimestamp) and updateInfo.addedAuras then
         for _, aura in ipairs(updateInfo.addedAuras) do
             --Check the auras added to see if any was applied by the player, if so we assume this aura was applied by a spell we don't want to track
             if C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'PLAYER') then
@@ -198,6 +203,7 @@ function Core.CheckAuraStatus(unit, updateInfo)
                 if utilityTable.activeAuras[unit] == auraId then
                     utilityTable.activeAuras[unit] = nil
                     hasBuff = false
+                    break
                 end
             end
         end
@@ -208,6 +214,14 @@ function Core.CheckAuraStatus(unit, updateInfo)
                     trackedAura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, auraId)
                     break
                 end
+            end
+        end
+        --If we have a saved buff still and it wasn't updated, get the info from it or delete it if its invalid
+        if hasBuff and not trackedAura then
+            trackedAura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, utilityTable.activeAuras[unit])
+            if not trackedAura then
+                hasBuff = false
+                utilityTable.activeAuras[unit] = nil
             end
         end
     end
@@ -228,6 +242,7 @@ function Core.CheckAuraStatus(unit, updateInfo)
             local auras = C_UnitAuras.GetUnitAuras(unit, Data.buffFilter, 2, Enum.UnitAuraSortRule.ExpirationOnly)
             if #auras == 2 then --If the unit has two auras these have to be Earth Shield and Riptide
                 hasBuff = true
+                trackedAura = auras[1]
                 utilityTable.activeAuras[unit] = auras[1].auraInstanceID --We know the first aura is Riptide because of the sorting
                 if not isPlayer then
                     utilityTable.earthShield = { unit = unit, aura = auras[2].auraInstanceID } --If the unit has two auras and is not the player, this is our second earth shield
@@ -251,20 +266,26 @@ function Core.CheckAuraStatus(unit, updateInfo)
                         hasBuff = true --If it isn't filtered, this is echo
                         trackedAura = aura
                         utilityTable.activeAuras[unit] = aura.auraInstanceID
+                        break
                     end
                 end
             end
         end
     --Priest aura handling
     elseif Data.playerClass == 'PRIEST' and utilityTable.isDisc then
-        --If we don't have a valid saved aura for this unit, we check their buffs
-        if not utilityTable.activeAuras[unit] then
+        --We check if new auras were added and a correct cast was just made
+        if updateInfo.addedAuras and Util.AreTimestampsEqual(currentTime, utilityTable.filteredSpellTimestamp) then
             local auras = C_UnitAuras.GetUnitAuras(unit, Data.buffFilter, 1, Enum.UnitAuraSortRule.NameOnly)
-            --Sorting means Atonement will be first, if the auraInstanceID isn't from one of our filtered casts then the unit has atonement
-            if #auras == 1 and not Util.IsAuraOnUnitFilteredByList(auras[1].auraInstanceID, unit, utilityTable.filteredBuffs)  then
-                hasBuff = true
-                trackedAura = auras[1]
-                utilityTable.activeAuras[unit] = auras[1].auraInstanceID
+            --Sorting means Atonement will be first
+            if #auras == 1 then
+                for _, aura in ipairs(updateInfo.addedAuras) do
+                    --If one of the added auras matches, this is the atonement
+                    if aura.auraInstanceID == auras[1].auraInstanceID then
+                        hasBuff = true
+                        trackedAura = aura
+                        utilityTable.activeAuras[unit] = aura.auraInstanceID
+                    end
+                end
             end
         end
     end
@@ -274,4 +295,5 @@ function Core.CheckAuraStatus(unit, updateInfo)
     else
         Util.HideTrackedBuff(unit)
     end
+    return hasBuff, trackedAura
 end
