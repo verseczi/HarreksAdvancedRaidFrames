@@ -8,7 +8,7 @@ local Options = HARFDB.options
 
 --List of the names of all the default raid frames
 Data.frameList = { party = {}, raid = {} }
-for i = 1, 30 do
+for i = 1, 40 do
     if i <= 5 then
         table.insert(Data.frameList.party, 'CompactPartyFrameMember' .. i)
     end

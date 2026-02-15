@@ -195,6 +195,7 @@ function Util.MapOutUnits()
             wipe(elements.debuffs)
             if elements.indicatorOverlay then
                 elements.indicatorOverlay:Delete()
+                elements.indicatorOverlay = nil
             end
         end
     end
@@ -247,6 +248,13 @@ function Util.DoesAuraDifferBetweenFilters(unit, auraId)
     local passesRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID')
     local passesRaidInCombat = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID_IN_COMBAT')
     return passesRaid ~= passesRaidInCombat
+end
+
+function Util.MapEngineFunctions()
+    local functionMap = Data.engineFunctions
+    for spec, _ in pairs(Data.specInfo) do
+        functionMap[spec] = Core['Parse' .. spec .. 'Buffs']
+    end
 end
 
 --We hook into the function that recolors the health bars

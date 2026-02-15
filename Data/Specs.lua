@@ -22,7 +22,9 @@ Data.specInfo = {
         auras = {
             Echo = 2,
             Reversion = 3,
+            EchoReversion = 3,
             DreamBreath = 3,
+            EchoDreamBreath = 3,
             TimeDilation = 2,
             Rewind = 4,
             DreamFlight = 2,
@@ -30,13 +32,18 @@ Data.specInfo = {
         casts = {
             [364343] = { 'Echo' },
             [366155] = { 'Reversion' },
-            [355936] = { 'DreamBreath' },
-            [382614] = { 'DreamBreath' },
             [357170] = { 'TimeDilation' },
             [363534] = { 'Rewind' },
-            [359816] = { 'DreamFlight' },
+            DreamBreath = {}
         },
-        spec = 0,
+        empowers = {
+            [355936] = 'DreamBreath',
+            [382614] = 'DreamBreath',
+            [357208] = 'FireBreath',
+            [382266] = 'FireBreath'
+        },
+        tts = 370553,
+        df = 359816
     },
     AugmentationEvoker = {
         display = 'Augmentation Evoker',
@@ -76,7 +83,7 @@ Data.specInfo = {
             [48438] = { 'WildGrowth' },
             [102342] = { 'IronBark' },
         },
-        spec = 0,
+        convoke = 391528
     },
     DisciplinePriest = {
         display = 'Discipline Priest',

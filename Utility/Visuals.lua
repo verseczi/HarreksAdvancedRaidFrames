@@ -14,11 +14,12 @@ function Util.UpdateIndicatorsForUnit(unit)
             elements.indicatorOverlay:UpdateIndicators()
         end
         if elements.extraFrames then
-            --this will be an api point, so extra frames get their own indicator overlays updated as well
+            --TODO this will be an api point, so extra frames get their own indicator overlays updated as well
         end
     end
 end
 
+--What a stupid fucking function to have to write
 function Util.FigureOutBarAnchors(barData)
     local points = {
         { point = barData.Position, relative = barData.Position }
@@ -53,14 +54,20 @@ function Util.FigureOutBarAnchors(barData)
                 table.insert(points, { point = 'BOTTOMLEFT', relative = 'LEFT' })
             end
         elseif barData.Orientation == 'Horizontal' then
+            sizing.Reverse = true
             if barData.Scale == 'Full' then
+                table.insert(points, { point = 'TOPRIGHT', relative = 'TOPRIGHT' })
             elseif barData.Scale == 'Half' then
+                table.insert(points, { point = 'TOPRIGHT', relative = 'TOP' })
             end
         end
     elseif barData.Position == 'BOTTOMRIGHT' then
         if barData.Orientation == 'Vertical' then
+            sizing.Reverse = true
             if barData.Scale == 'Full' then
+                table.insert(points, { point = 'TOPRIGHT', relative = 'TOPRIGHT' })
             elseif barData.Scale == 'Half' then
+                table.insert(points, { point = 'TOPRIGHT', relative = 'RIGHT' })
             end
         elseif barData.Orientation == 'Horizontal' then
             if barData.Scale == 'Full' then
@@ -70,19 +77,26 @@ function Util.FigureOutBarAnchors(barData)
             end
         end
     elseif barData.Position == 'BOTTOMLEFT' then
+        sizing.Reverse = true
         if barData.Orientation == 'Vertical' then
             if barData.Scale == 'Full' then
+                table.insert(points, { point = 'TOPLEFT', relative = 'TOPLEFT' })
             elseif barData.Scale == 'Half' then
+                table.insert(points, { point = 'TOPLEFT', relative = 'LEFT' })
             end
         elseif barData.Orientation == 'Horizontal' then
             if barData.Scale == 'Full' then
+                table.insert(points, { point = 'BOTTOMRIGHT', relative = 'BOTTOMRIGHT' })
             elseif barData.Scale == 'Half' then
+                table.insert(points, { point = 'BOTTOM', relative = 'BOTTOM' })
             end
         end
     end
     return { points = points, sizing = sizing }
 end
 
+--There must be a better way to do this?
+--Do i have to rewrite my whole data tables so i can share it between the functions?
 function Util.GetDefaultSettingsForIndicator(type)
     local data = { Type = type }
         if type == 'healthColor' then
@@ -90,10 +104,14 @@ function Util.GetDefaultSettingsForIndicator(type)
     elseif type == 'icon' then
         data.Position = 'CENTER'
         data.Size = 25
+        data.xOffset = 0
+        data.yOffset = 0
     elseif type == 'square' then
         data.Color = { r = 0, g = 1, b = 0, a = 1 }
         data.Position = 'CENTER'
         data.Size = 25
+        data.xOffset = 0
+        data.yOffset = 0
     elseif type == 'bar' then
         data.Color = { r = 0, g = 1, b = 0, a = 1 }
         data.Position = 'TOPRIGHT'

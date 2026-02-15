@@ -78,6 +78,7 @@ function Ui.CreateOptionsElement(data, parent)
     end
 end
 
+--TODO: remake the options
 function Ui.CreateOptionsPanel(optionsTable)
     local category, layout = Settings.RegisterVerticalLayoutCategory("Advanced Raid Frames");
     for _, data in ipairs(optionsTable) do

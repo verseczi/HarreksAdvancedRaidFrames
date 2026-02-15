@@ -26,15 +26,14 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
         frame.type = nil
         frame:SetHeight(80)
         frame.SetupText = function(self, index)
-            self.optionsContainerIndex = index
             if self.type then
                 self.text:SetText(index .. '. ' .. Data.indicatorTypes[self.type].display)
             end
         end
         frame.AnchorElements = function(self)
             for index, element in ipairs(self.elements) do
-                element:SetParent(self)
                 element:ClearAllPoints()
+                element:SetParent(self)
                 local parent, point, rel, xOff, yOff
                 if index == 1 then
                     parent = self
@@ -48,16 +47,23 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                     rel = 'RIGHT'
                     xOff = 10
                     yOff = 0
+                    --this is a stupid hardcoded fix to make selectors line up when icons don't have a color picker
+                    if self.type == 'icon' and index == 2 then
+                        xOff = 35
+                    end
                 end
                 element:SetPoint(point, parent, rel, xOff, yOff)
+                element:Show()
             end
+            self.deleteButton:ClearAllPoints()
             self.deleteButton:SetParent(self)
             self.deleteButton:SetPoint('TOPRIGHT', self, 'TOPRIGHT', -2, -2)
         end
         frame.ReleaseElements = function(self)
-            for _, element in ipairs(frame.elements) do
-                element:SetParent()
+            for i = #self.elements, 1, -1 do
+                local element = self.elements[i]
                 element:Release()
+                self.elements[i] = nil
             end
             if self.deleteButton then
                 self.deleteButton:Release()
@@ -94,6 +100,10 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                             dataTable.Position = control.selectedOption
                         elseif control.type == 'Slider' and control.sliderType == 'iconSize' then
                             dataTable.Size = control:GetValue()
+                        elseif control.type == 'Slider' and control.sliderType == 'xOffset' then
+                            dataTable.xOffset = control:GetValue()
+                        elseif control.type == 'Slider' and control.sliderType == 'yOffset' then
+                            dataTable.yOffset = control:GetValue()
                         elseif control.type == 'SpellSelector' then
                             dataTable.Spell = control.selectedOption
                         end
@@ -108,6 +118,10 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                             dataTable.Position = control.selectedOption
                         elseif control.type == 'Slider' and control.sliderType == 'iconSize' then
                             dataTable.Size = control:GetValue()
+                        elseif control.type == 'Slider' and control.sliderType == 'xOffset' then
+                            dataTable.xOffset = control:GetValue()
+                        elseif control.type == 'Slider' and control.sliderType == 'yOffset' then
+                            dataTable.yOffset = control:GetValue()
                         elseif control.type == 'SpellSelector' then
                             dataTable.Spell = control.selectedOption
                         end
@@ -142,15 +156,8 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
             if spec and index then
                 table.remove(SavedIndicators[spec], index)
             end
-            local parent = self:GetParent()
-            if parent then
-                if self.optionsContainerIndex then
-                    table.remove(parent.Elements, self.optionsContainerIndex)
-                end
-                parent:DisplayElements()
-            end
-            Ui.ContainerFramePool:Release(self)
             local designer = Ui.GetDesignerFrame()
+            designer:RefreshScrollBox()
             designer:RefreshPreview()
         end
     end
@@ -159,6 +166,9 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
 --Color picker pool
 Ui.ColorPickerFramePool = CreateFramePool('Button', nil, 'ColorSwatchTemplate',
     function(_, frame)
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent()
         frame.Color:SetVertexColor(0, 1, 0, 1)
     end, false,
     function(frame)
@@ -201,6 +211,10 @@ Ui.SpellSelectorFramePool = CreateFramePool('DropdownButton', nil, "WowStyle1Dro
     function(_, frame)
         frame.spec = nil
         frame.selectedOption = nil
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent()
+        frame:CloseMenu()
     end, false,
     function(frame)
         frame.type = 'SpellSelector'
@@ -237,6 +251,10 @@ Ui.DropdownSelectorPool = CreateFramePool('DropdownButton', nil, "WowStyle1Dropd
         frame.selectedOption = nil
         frame.allOptions = {}
         frame.dropdownType = nil
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent()
+        frame:CloseMenu()
         frame:GenerateMenu()
     end, false,
     function(frame)
@@ -295,7 +313,11 @@ Ui.DeleteIndicatorOptionsButtonPool = CreateFramePool('Button', nil, 'UIPanelBut
 
 Ui.SliderPool = CreateFramePool('Slider', nil, 'UISliderTemplateWithLabels',
     function(_, frame)
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent()
         frame:SetValue(0)
+        frame:SetMinMaxValues(0, 0)
         frame.Text:SetText("")
     end, false,
     function(frame)
@@ -378,6 +400,7 @@ Ui.IndicatorOverlayPool = CreateFramePool('Frame', UIParent, nil,
 Ui.IconIndicatorPool = CreateFramePool('Frame', nil, nil,
     function(_, frame)
         frame:ClearAllPoints()
+        frame:SetParent()
         frame.spell = nil
         frame:Hide()
     end, false,
@@ -391,7 +414,7 @@ Ui.IconIndicatorPool = CreateFramePool('Frame', nil, nil,
         frame.cooldown:SetAllPoints()
         frame.cooldown:SetReverse(true)
         frame.ShowPreview = function(self)
-            frame.texture:SetTexture('Interface/Addons/HarreksAdvancedRaidFrames/HarreksAdvancedRaidFrames.tga')
+            frame.texture:SetTexture('Interface/Addons/HarreksAdvancedRaidFrames/Assets/logo.tga')
             frame.cooldown:SetCooldown(GetTime(), 30)
             if not frame.previewTimer then
                 frame.previewTimer = C_Timer.NewTicker(30, function()
@@ -416,7 +439,10 @@ Ui.IconIndicatorPool = CreateFramePool('Frame', nil, nil,
             end
         end
         frame.Release = function(self)
-            if self.previewTimer then self.previewTimer:Cancel() end
+            if self.previewTimer then
+                self.previewTimer:Cancel()
+                self.previewTimer = nil
+            end
             Ui.IconIndicatorPool:Release(self)
         end
     end
@@ -426,6 +452,7 @@ Ui.IconIndicatorPool = CreateFramePool('Frame', nil, nil,
 Ui.SquareIndicatorPool = CreateFramePool('Frame', nil, nil,
     function(_, frame)
         frame:ClearAllPoints()
+        frame:SetParent()
         frame.spell = nil
         frame:Hide()
     end, false,
@@ -447,6 +474,7 @@ Ui.SquareIndicatorPool = CreateFramePool('Frame', nil, nil,
 Ui.BarIndicatorPool = CreateFramePool('StatusBar', nil, nil,
     function(_, frame)
         frame:ClearAllPoints()
+        frame:SetParent()
         frame.spell = nil
         frame:Hide()
     end, false,
@@ -462,8 +490,8 @@ Ui.BarIndicatorPool = CreateFramePool('StatusBar', nil, nil,
             local duration = C_DurationUtil.CreateDuration()
             duration:SetTimeFromStart(GetTime(), 30)
             self:SetTimerDuration(duration, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
-            if not frame.previewTimer then
-                frame.previewTimer = C_Timer.NewTicker(30, function()
+            if not self.previewTimer then
+                self.previewTimer = C_Timer.NewTicker(30, function()
                     local duration = C_DurationUtil.CreateDuration()
                     duration:SetTimeFromStart(GetTime(), 30)
                     self:SetTimerDuration(duration, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
@@ -472,7 +500,10 @@ Ui.BarIndicatorPool = CreateFramePool('StatusBar', nil, nil,
             self:Show()
         end
         frame.Release = function(self)
-            if self.previewTimer then self.previewTimer:Cancel() end
+            if self.previewTimer then
+                self.previewTimer:Cancel()
+                self.previewTimer = nil
+            end
             Ui.BarIndicatorPool:Release(self)
         end
     end

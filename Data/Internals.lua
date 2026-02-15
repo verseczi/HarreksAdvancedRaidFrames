@@ -18,6 +18,8 @@ Data.state = {
     extras = {}
 }
 
+Data.engineFunctions = {}
+
 Data.indicatorTypes = {
     icon = {
         display = 'Icon'
@@ -77,16 +79,16 @@ Data.sliderPresets = {
         text = 'X Offset',
         decimals = 0,
         default = 0,
-        min = -20,
-        max = 20,
+        min = -50,
+        max = 50,
         step = 1
     },
     yOffset = {
         text = 'Y Offset',
         decimals = 0,
         default = 0,
-        min = -20,
-        max = 20,
+        min = -50,
+        max = 50,
         step = 1
     }
 }

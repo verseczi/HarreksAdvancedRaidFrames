@@ -69,16 +69,12 @@ function Ui.GetDesignerFrame()
         specDropdown:SetupMenu(function(_, root)
             root:CreateTitle('Pick Specialization')
             for spec, data in pairs(Data.specInfo) do
-                if not Options.editingSpec then Options.editingSpec = spec end
                 root:CreateRadio(
                     data.display,
                     function() return Options.editingSpec == spec end,
                     function()
                         Options.editingSpec = spec
-                        for _, specIndicators in pairs(designer.Indicators) do
-                            specIndicators:Hide()
-                        end
-                        designer.Indicators[spec]:Show()
+                        designer.RefreshScrollBox()
                         designer.RefreshPreview()
                     end
                 )
@@ -123,64 +119,63 @@ function Ui.GetDesignerFrame()
                 end
                 table.insert(SavedIndicators[Options.editingSpec], Util.GetDefaultSettingsForIndicator(Data.selectedType))
                 --Refresh the display
-                local specIndicatorsContainer = designer.Indicators[Options.editingSpec]
-                specIndicatorsContainer:DisplayElements()
+                designer.RefreshScrollBox()
                 designer:RefreshPreview()
             end
         end)
         indicatorCreator.CreateButton = createButton
 
-        --The final part of the designer is one box for every spec, we show only the box for the current spec at a time
-        designer.Indicators = {}
-        for spec, _ in pairs(Data.specInfo) do
-            local indicatorContainer = CreateFrame('Frame', nil, designer)
-            indicatorContainer.Elements = {}
-            indicatorContainer:SetPoint('TOPRIGHT', config, 'BOTTOMRIGHT')
-            indicatorContainer:SetPoint('BOTTOMLEFT', designer, 'BOTTOMLEFT')
+        --The final part of the designer is a scroll box that shows the options for the currently selected spec
+        local indicatorScroll = CreateFrame('Frame', nil, designer, 'WowScrollBoxList')
+        indicatorScroll:SetPoint('TOPRIGHT', config, 'BOTTOMRIGHT', -5, 0)
+        indicatorScroll:SetPoint('BOTTOMLEFT', designer, 'BOTTOMLEFT')
+        designer.IndicatorScroll = indicatorScroll
 
-            indicatorContainer.RebuildElements = function(self)
-                for _, Element in ipairs(self.Elements) do
-                    if Element.type then
-                        Element:Release()
-                    end
-                end
-                wipe(self.Elements)
-                if SavedIndicators and SavedIndicators[spec] then
-                    for index, savedSetting in ipairs(SavedIndicators[spec]) do
-                        local newOption = Ui.CreateIndicatorOptions(savedSetting.Type, spec, savedSetting)
-                        newOption.savedSetting.index = index
-                        table.insert(self.Elements, newOption)
-                        newOption:Show()
-                    end
-                end
+        local scrollBar = CreateFrame('EventFrame', nil, designer, 'MinimalScrollBar')
+        scrollBar:SetPoint('TOPLEFT', indicatorScroll, 'TOPRIGHT', 3, 0)
+        scrollBar:SetPoint('BOTTOMLEFT', indicatorScroll, 'BOTTOMRIGHT', 3, 0)
+        scrollBar:SetHideIfUnscrollable(true)
+
+        local DataProvider = CreateDataProvider()
+        local ScrollView = CreateScrollBoxListLinearView()
+        ScrollView:SetElementExtent(80)
+
+        ScrollView:SetElementInitializer('Frame', function(frame, data)
+            if not frame.optFrame then
+                frame.optFrame = Ui.CreateIndicatorOptions(data.Type, Options.editingSpec, data)
             end
 
-            indicatorContainer.DisplayElements = function(self)
-                self:RebuildElements()
-                for index, element in ipairs(self.Elements) do
-                    element:SetParent(self)
-                    element:SetupText(index)
-                    element:ClearAllPoints()
-                    local points = {}
-                    if index == 1 then
-                        table.insert(points, { parent = self, point = 'TOPLEFT', rel = 'TOPLEFT' })
-                        table.insert(points, { parent = self, point = 'TOPRIGHT', rel = 'TOPRIGHT' })
-                    else
-                        table.insert(points, { parent = self.Elements[index - 1], point = 'TOPLEFT', rel = 'BOTTOMLEFT' })
-                        table.insert(points, { parent = self.Elements[index - 1], point = 'TOPRIGHT', rel = 'BOTTOMRIGHT' })
-                    end
-                    for _, point in ipairs(points) do
-                        element:SetPoint(point.point, point.parent, point.rel)
-                    end
+            frame.optFrame:SetParent(frame)
+            frame.optFrame:ClearAllPoints()
+            frame.optFrame:SetAllPoints(frame)
+            frame.optFrame:Show()
+
+            frame.optFrame.savedSetting.spec = Options.editingSpec
+            frame.optFrame.savedSetting.index = data.index
+            frame.optFrame:SetupText(data.index)
+        end)
+
+        ScrollView:SetElementResetter(function(frame)
+            if frame.optFrame then
+                frame.optFrame:Release()
+                frame.optFrame = nil
+            end
+        end)
+
+        ScrollUtil.InitScrollBoxListWithScrollBar(indicatorScroll, scrollBar, ScrollView)
+        ScrollView:SetDataProvider(DataProvider)
+
+        designer.RefreshScrollBox = function()
+            local spec = Options.editingSpec
+            DataProvider:Flush()
+
+            if SavedIndicators and SavedIndicators[spec] then
+                for index, savedSetting in ipairs(SavedIndicators[spec]) do
+                    local settingsData = CopyTable(savedSetting)
+                    settingsData.index = index
+                    DataProvider:Insert(settingsData)
                 end
             end
-
-            indicatorContainer:DisplayElements()
-
-            if spec ~= Options.editingSpec then
-                indicatorContainer:Hide()
-            end
-            designer.Indicators[spec] = indicatorContainer
         end
 
         designer.RefreshPreview = function()
@@ -194,7 +189,12 @@ function Ui.GetDesignerFrame()
             end
         end
 
+        designer.RefreshScrollBox()
         designer.RefreshPreview()
+
+        designer:SetScript('OnHide', function()
+            Util.MapOutUnits()
+        end)
     end
     return Ui.DesignerFrame
 end

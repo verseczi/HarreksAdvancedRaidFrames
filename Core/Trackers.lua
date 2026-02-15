@@ -28,22 +28,49 @@ function Core.InstallTrackers()
         castTracker:RegisterUnitEvent('UNIT_SPELLCAST_EMPOWER_STOP')
         castTracker:SetScript('OnEvent', function(self, event, _, _, spellId, empSuccess)
             local state = Data.state
+            local specInfo = Data.specInfo[Data.playerSpec]
+            local timestamp = GetTime()
             if event == 'UNIT_SPELLCAST_SUCCEEDED' then
-                local specInfo = Data.specInfo[Data.playerSpec]
                 if specInfo.casts[spellId] then
-                    local timestamp = GetTime()
                     state.casts[spellId] = timestamp
                     state.lastCast = spellId
                 end
 
                 if Data.playerSpec == 'RestorationDruid' then
-                    if spellId == 391528 then
+                    --When convoke is casted, we are convoking for the next 3 seconds
+                    if spellId == specInfo.convoke then
                         state.extras.isConvoking = true
                         C_Timer.After(3, function() state.extras.isConvoking = false end)
                     end
+                elseif Data.playerSpec == 'PreservationEvoker' then
+                    --We set a flag when TTS is casted
+                    if spellId == specInfo.tts then
+                        state.extras.tts = true
+                    --if TTS is already active, check if the cast is an empower
+                    elseif state.extras.tts and specInfo.empowers[spellId] then
+                        --We remove tts on any empower, but only save the cast on dream breath
+                        state.extras.tts = false
+                        if specInfo.empowers[spellId] == 'DreamBreath' then
+                            state.casts['DreamBreath'] = timestamp
+                            state.lastCast = 'DreamBreath'
+                        end
+                    end
+                    --Special handling for dreamflight
+                    if spellId == specInfo.df then
+                        state.extras.dreamflight = true
+                        --This is terrible, i need to find a good event to detect the dreamflight landing
+                        C_Timer.After(2, function() state.extras.dreamflight = false end)
+                    end
                 end
             elseif event == 'UNIT_SPELLCAST_EMPOWER_STOP' then
-                --Handle empowers
+                if Data.playerSpec == 'PreservationEvoker' then
+                    --instead of cast success, dream breath needs a empower_stop with empSuccess
+                    if specInfo.empowers[spellId] == 'DreamBreath' and empSuccess then
+                        --kind of a funky workaround, by using the spell name we avoid the normal spellcast_succeed from saving db
+                        state.casts['DreamBreath'] = timestamp
+                        state.lastCast = 'DreamBreath'
+                    end
+                end
             end
             ----TODO:
             -- TTS
@@ -60,8 +87,9 @@ function Core.InstallTrackers()
         stateTracker:RegisterEvent('GROUP_ROSTER_UPDATE')
         stateTracker:SetScript('OnEvent', function(self, event)
             if event == 'PLAYER_LOGIN' then
-                DevTool:AddData(Data.state, 'HARFState')
+                DevTool:AddData(Data.state, 'State')
                 Util.UpdatePlayerSpec()
+                Util.MapEngineFunctions()
                 Data.editingSpec = Data.playerSpec
 
                 Ui.CreateOptionsPanel(Data.settings)

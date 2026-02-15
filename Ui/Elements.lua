@@ -18,11 +18,21 @@ function Ui.CreateSlider(type)
     return newSlider
 end
 
+--TODO: this generator and the function that pulls the data from the elements of the container are a pain, need to rewrite them so they pull from the same list
 --Create the options for a given indicator type. if saved settings is passed that data is used to init the control
 function Ui.CreateIndicatorOptions(type, spec, savedSettings)
     local containerFrame = Ui.ContainerFramePool:Acquire()
     containerFrame.type = type
     containerFrame.savedSetting.spec = spec
+
+    local spellSelector = Ui.SpellSelectorFramePool:Acquire()
+    spellSelector.spec = spec
+    if savedSettings and savedSettings.Spell then
+        spellSelector.selectedOption = savedSettings.Spell
+    end
+    spellSelector:GenerateMenu()
+    table.insert(containerFrame.elements, spellSelector)
+
     if type == 'healthColor' then
         local colorPicker = Ui.ColorPickerFramePool:Acquire()
         if savedSettings and savedSettings.Color then
@@ -42,6 +52,16 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             iconSizeSlider:SetValue(savedSettings.Size)
         end
         table.insert(containerFrame.elements, iconSizeSlider)
+        local iconXOffsetSlider = Ui.CreateSlider('xOffset')
+        if savedSettings and savedSettings.xOffset then
+            iconXOffsetSlider:SetValue(savedSettings.xOffset)
+        end
+        table.insert(containerFrame.elements, iconXOffsetSlider)
+        local iconYOffsetSlider = Ui.CreateSlider('yOffset')
+        if savedSettings and savedSettings.yOffset then
+            iconYOffsetSlider:SetValue(savedSettings.yOffset)
+        end
+        table.insert(containerFrame.elements, iconYOffsetSlider)
     elseif type == 'square' then
         local colorPicker = Ui.ColorPickerFramePool:Acquire()
         if savedSettings and savedSettings.Color then
@@ -60,6 +80,16 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             iconSizeSlider:SetValue(savedSettings.Size)
         end
         table.insert(containerFrame.elements, iconSizeSlider)
+        local iconXOffsetSlider = Ui.CreateSlider('xOffset')
+        if savedSettings and savedSettings.xOffset then
+            iconXOffsetSlider:SetValue(savedSettings.xOffset)
+        end
+        table.insert(containerFrame.elements, iconXOffsetSlider)
+        local iconYOffsetSlider = Ui.CreateSlider('yOffset')
+        if savedSettings and savedSettings.yOffset then
+            iconYOffsetSlider:SetValue(savedSettings.yOffset)
+        end
+        table.insert(containerFrame.elements, iconYOffsetSlider)
     elseif type == 'bar' then
         local colorPicker = Ui.ColorPickerFramePool:Acquire()
         if savedSettings and savedSettings.Color then
@@ -73,6 +103,11 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             barPositionSelector:GenerateMenu()
         end
         table.insert(containerFrame.elements, barPositionSelector)
+        local barSizeSlider = Ui.CreateSlider('barSize')
+        if savedSettings and savedSettings.Size then
+            barSizeSlider:SetValue(savedSettings.Size)
+        end
+        table.insert(containerFrame.elements, barSizeSlider)
         local barOrientationSelector = Ui.CreateDropdown('barOrientation')
         if savedSettings and savedSettings.Orientation then
             barOrientationSelector.selectedOption = savedSettings.Orientation
@@ -85,19 +120,7 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             barScaleSelector:GenerateMenu()
         end
         table.insert(containerFrame.elements, barScaleSelector)
-        local barSizeSlider = Ui.CreateSlider('barSize')
-        if savedSettings and savedSettings.Size then
-            barSizeSlider:SetValue(savedSettings.Size)
-        end
-        table.insert(containerFrame.elements, barSizeSlider)
     end
-    local spellSelector = Ui.SpellSelectorFramePool:Acquire()
-    spellSelector.spec = spec
-    if savedSettings and savedSettings.Spell then
-        spellSelector.selectedOption = savedSettings.Spell
-    end
-    spellSelector:GenerateMenu()
-    table.insert(containerFrame.elements, spellSelector)
     local deleteButton = Ui.DeleteIndicatorOptionsButtonPool:Acquire()
     deleteButton.parent = containerFrame
     containerFrame.deleteButton = deleteButton
@@ -114,7 +137,7 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                 newIcon.spell = indicatorData.Spell
                 newIcon:SetParent(newIndicatorOverlay)
                 newIcon:SetSize(indicatorData.Size, indicatorData.Size)
-                newIcon:SetPoint(indicatorData.Position, newIndicatorOverlay, indicatorData.Position)
+                newIcon:SetPoint(indicatorData.Position, newIndicatorOverlay, indicatorData.Position, indicatorData.xOffset, indicatorData.yOffset)
                 table.insert(newIndicatorOverlay.elements, newIcon)
             elseif indicatorData.Type == 'square' then
                 local newSquare = Ui.SquareIndicatorPool:Acquire()
@@ -122,7 +145,7 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                 local color = indicatorData.Color
                 newSquare:SetParent(newIndicatorOverlay)
                 newSquare:SetSize(indicatorData.Size, indicatorData.Size)
-                newSquare:SetPoint(indicatorData.Position, newIndicatorOverlay, indicatorData.Position)
+                newSquare:SetPoint(indicatorData.Position, newIndicatorOverlay, indicatorData.Position, indicatorData.xOffset, indicatorData.yOffset)
                 newSquare.texture:SetColorTexture(color.r, color.g, color.b, color.a)
                 table.insert(newIndicatorOverlay.elements, newSquare)
             elseif indicatorData.Type == 'bar' then
@@ -145,9 +168,13 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                         newBar:SetHeight(indicatorData.Size)
                     end
                 end
+                if anchorData.sizing.Reverse then
+                    newBar:SetReverseFill(true)
+                end
                 newBar.spell = indicatorData.Spell
                 table.insert(newIndicatorOverlay.elements, newBar)
             end
+            --Write handling for healthColor type indicators
         end
         return newIndicatorOverlay
     end
