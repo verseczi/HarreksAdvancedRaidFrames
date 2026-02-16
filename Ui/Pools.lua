@@ -378,6 +378,8 @@ Ui.IndicatorOverlayPool = CreateFramePool('Frame', UIParent, nil,
                 element:UpdateIndicator(self.unit, auraData)
             end
         end
+        frame.coloringFunc = nil
+        frame.extraFrameIndex = nil
         frame.ShowPreview = function(self)
             for _, element in ipairs(self.elements) do
                 element:SetScale(1.3)
@@ -523,35 +525,63 @@ Ui.BarIndicatorPool = CreateFramePool('StatusBar', nil, nil,
     end
 )
 
-Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, nil,
+Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, 'BackdropTemplate',
     function(_, frame)
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent()
         frame.spell = nil
     end, false,
     function(frame)
         frame.spell = nil
         frame.color = nil
         frame.type = 'HealthColor'
-        frame.DefaultCallback = function(self, unit, auraData)
-            local unitList = Util.GetRelevantList()
-            local elements = unitList[unit]
-            if self.spell and auraData[self.spell] and elements then
-                elements.isColored = true
-                elements.recolor = self.color
-                local unitFrame = _G[elements.frame]
-                if unitFrame and unitFrame.healthBar then
-                    --unitFrame.healthBar.barTexture:SetVertexColor(self.color.r, self.color.g, self.color.b)
+        frame:SetBackdrop({
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = 3,
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            tile = true, tileSize = 16,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 }
+        })
+        frame:SetBackdropColor(0, 0, 0, 0)
+        frame:Hide()
+        frame.DefaultCallback = function(self, frameToRecolor, shouldBeColored)
+            if frameToRecolor and frameToRecolor.healthBar then
+                if shouldBeColored then
+                    --frameToRecolor.healthBar.barTexture:SetVertexColor(self.color.r, self.color.g, self.color.b)
+                    self:Show()
+                    self:SetBackdropBorderColor(self.color.r, self.color.g, self.color.b)
+                else
+                    self:Hide()
+                    --CompactUnitFrame_UpdateHealthColor(frameToRecolor)
                 end
-            else
-                elements.isColored = false
-                elements.recolor = nil
-                local unitFrame = _G[elements.frame]
-                --CompactUnitFrame_UpdateHealthColor(unitFrame)
             end
         end
         frame.UpdateIndicator = function(self, unit, auraData)
-            self:DefaultCallback(unit, auraData)
+            local overlay = self:GetParent()
+            local unitList = Util.GetRelevantList()
+            local elements = unitList[unit]
+            local shouldBeColored = false
+            if self.spell and auraData[self.spell] and elements then
+                elements.isColored = true
+                elements.recolor = self.color
+                shouldBeColored = true
+            else
+                elements.isColored = false
+                elements.recolor = nil
+            end
+            local coloringFunc = overlay.coloringFunc
+            if coloringFunc and type(coloringFunc) == 'function' then
+                local unitFrame = elements.extraFrames[overlay.extraFrameIndex].frame
+                coloringFunc(unitFrame, shouldBeColored, self.color)
+            else
+                local unitFrame = _G[elements.frame]
+                self:DefaultCallback(unitFrame, shouldBeColored)
+            end
         end
-        frame.ShowPreview = function(self) end
+        frame.ShowPreview = function(self)
+            self:Show()
+        end
         frame.Release = function(self)
             Ui.HealthColorIndicatorPool:Release(self)
         end

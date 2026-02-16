@@ -37,4 +37,5 @@ Core/Trackers.lua
 Main.lua
 
 External/Api.lua
-External/Grid2.lua
+External/Grid2Plugin.lua
+External/DandersFramesPlugin.lua

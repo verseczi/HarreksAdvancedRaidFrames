@@ -18,7 +18,6 @@ Data.state = {
     extras = {}
 }
 
-Data.engineFunctions = {}
 
 Data.textures = {
     Echo = 4622456,
@@ -233,5 +232,7 @@ Data.otherAddonsInfo = {
     }
 }
 
+Data.engineFunctions = {}
+Data.registeredExtraFrames = {}
 Data.initializerList = {}
 Data.playerSpec = nil

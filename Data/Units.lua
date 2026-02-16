@@ -26,7 +26,8 @@ Data.defaultUnitData = {
     centerIcon = nil,
     name = nil,
     isColored = false,
-    defensive = { type = 'defensive', frame = nil }
+    defensive = { type = 'defensive', frame = nil },
+    extraFrames = {}
 }
 
 --Build a list of units to store data for each group member

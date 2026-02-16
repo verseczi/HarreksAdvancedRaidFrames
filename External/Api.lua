@@ -54,8 +54,41 @@ function API.GetUnitAura(unit, aura)
 end
 
 --Registers a frame to a unit so the indicator overlay is also created on top of that frame
+--the units are 'player', 'party#1-4', and 'raid#1-40'
 --coloringFunc will be called when the frame is supposed to be recolored, not passing a function will call frame.healthBar:SetStatusBarColor() instead
+--returns and index that is then used for UnregisterFrameForUnit
+--the idea here is that as your frames change units, you manage a registering/unregistering to keep them attached to the correct unit
 function API.RegisterFrameForUnit(unit, frame, coloringFunc)
+    local unitList = string.find(unit, 'raid') and Data.unitList.raid or Data.unitList.party
+    local unitElements = unitList[unit]
+    if unitElements then
+        table.insert(unitElements.extraFrames, { frame = frame, indicatorOverlay = nil, index = nil, coloringFunc = coloringFunc })
+        local index = #unitElements.extraFrames
+        unitElements.extraFrames[index].index = index
+        Util.MapOutUnits()
+        return index
+    else
+        return false
+    end
 end
+
+--You pass the same unit you gave to registering and the index you got back to remove it
+function API.UnregisterFrameForUnit(unit, index)
+    local unitList = string.find(unit, 'raid') and Data.unitList.raid or Data.unitList.party
+    local extraFrames = unitList[unit].extraFrames
+    if extraFrames and #extraFrames > 0 then
+        if extraFrames[index].indicatorOverlay then
+            extraFrames[index].indicatorOverlay:Delete()
+        end
+        table.remove(extraFrames[index])
+        return true
+    else
+        return false
+    end
+end
+
+--TODO: Add these functions:
+----RegisterAuraForUnit(unit, buffName, callback) - Pass a unit and a buff and the callback gets called when the status of that buff changes on the unit
+----GetAuraInstances(buffName) - Pass a buff name and get back a list of all group units that currently have that aura with their aura data
 
 AdvancedRaidFramesAPI = API

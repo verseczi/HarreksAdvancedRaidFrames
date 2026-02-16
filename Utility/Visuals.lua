@@ -20,8 +20,10 @@ function Util.UpdateIndicatorsForUnit(unit)
         if elements.indicatorOverlay then
             elements.indicatorOverlay:UpdateIndicators(elements.auras)
         end
-        if elements.extraFrames then
-            --TODO this will be an api point, so extra frames get their own indicator overlays updated as well
+        if #elements.extraFrames > 0 then
+            for _, extraFrameData in ipairs(elements.extraFrames) do
+                extraFrameData.indicatorOverlay:UpdateIndicators(elements.auras)
+            end
         end
     end
 end
@@ -156,6 +158,7 @@ function Util.DisplayPopupTextbox(title, link)
 end
 
 --fuck flame recoloring
+--[[
 hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
     local unitList = Util.GetRelevantList()
     if frame.unit and unitList[frame.unit] and frame == _G[unitList[frame.unit].frame] and unitList[frame.unit].isColored then
@@ -163,3 +166,4 @@ hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
         --frame.healthBar.barTexture:SetVertexColor(color.r, color.g, color.b)
     end
 end)
+]]

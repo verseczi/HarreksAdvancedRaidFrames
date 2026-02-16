@@ -185,6 +185,22 @@ function Util.MapOutUnits()
                 elements.indicatorOverlay:Delete()
                 elements.indicatorOverlay = nil
             end
+
+            if #elements.extraFrames > 0 then
+                for _, extraFrameData in ipairs(elements.extraFrames) do
+                    if extraFrameData.frame and not extraFrameData.indicatorOverlay then
+                        local indicatorOverlay = Ui.CreateIndicatorOverlay(SavedIndicators[Data.playerSpec])
+                        indicatorOverlay.unit = unit
+                        indicatorOverlay:AttachToFrame(extraFrameData.frame)
+                        indicatorOverlay:Show()
+                        indicatorOverlay.extraFrameIndex = extraFrameData.index
+                        if extraFrameData.coloringFunc and type(extraFrameData.coloringFunc) == 'function' then
+                            indicatorOverlay.coloringFunc = extraFrameData.coloringFunc
+                        end
+                        extraFrameData.indicatorOverlay = indicatorOverlay
+                    end
+                end
+            end
         end
     end
     --We check the frames for the party or raid to find where each unit is
@@ -217,8 +233,6 @@ function Util.MapOutUnits()
             end
         end
     end
-
-    --TODO: install overlays on extra frames if there are registered, iterate thru unit list
 end
 
 function Util.UpdatePlayerSpec()

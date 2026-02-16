@@ -177,6 +177,8 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                 local newHealthRecolor = Ui.HealthColorIndicatorPool:Acquire()
                 newHealthRecolor.spell = indicatorData.Spell
                 newHealthRecolor.color = indicatorData.Color
+                newHealthRecolor:SetParent(newIndicatorOverlay)
+                newHealthRecolor:SetAllPoints()
                 table.insert(newIndicatorOverlay.elements, newHealthRecolor)
             end
         end

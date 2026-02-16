@@ -197,6 +197,7 @@ function Ui.CreateOptionsPanel(optionsTable)
     local addonsSubcategory = Settings.RegisterCanvasLayoutSubcategory(category, addonsPanel, 'Other Frames')
     Settings.RegisterAddOnCategory(addonsSubcategory)
 
+    --TODO: button opening to last opened menu is not working
     if not Options.lastCategory then Options.lastCategory = category.ID end
 
     SLASH_HARREKSADVANCEDRAIDFRAMES1 = "/harf"
