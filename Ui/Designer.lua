@@ -3,6 +3,7 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
@@ -138,7 +139,7 @@ function Ui.GetDesignerFrame()
 
         local DataProvider = CreateDataProvider()
         local ScrollView = CreateScrollBoxListLinearView()
-        ScrollView:SetElementExtent(80)
+        ScrollView:SetElementExtent(130)
 
         ScrollView:SetElementInitializer('Frame', function(frame, data)
             if not frame.optFrame then

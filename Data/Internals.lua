@@ -3,6 +3,7 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
@@ -13,7 +14,6 @@ Data.spotlightAnchors = {
 
 Data.state = {
     casts = {},
-    lastCast = nil,
     auras = {},
     extras = {}
 }
@@ -28,11 +28,15 @@ Data.textures = {
     TimeDilation = 4622478,
     Rewind = 4622474,
     DreamFlight = 4622455,
+    Lifebind = 4630453,
+    VerdantEmbrace = 4622471,
     Prescience = 5199639,
     ShiftingSands = 5199633,
     InfernosBlessing = 5199632,
     EbonMight = 5061347,
     SensePower = 132160,
+    SymbioticBloom = 4554354,
+    BlisteringScales = 5199621,
     PowerWordShield = 135940,
     Atonement = 458720,
     PainSuppression = 135936,
@@ -63,7 +67,8 @@ Data.textures = {
     BlessingOfSacrifice = 135966,
     BeaconOfVirtue = 1030094,
     BeaconOfTheSavior = 7514188,
-    AspectOfHarmony = 5927638
+    AspectOfHarmony = 5927638,
+    StrengthOfTheBlackOx = 615340
 }
 
 Data.indicatorTypes = {
@@ -136,6 +141,22 @@ Data.sliderPresets = {
         min = -50,
         max = 50,
         step = 1
+    },
+    offset = {
+        text = 'Offset',
+        decimals = 0,
+        default = 0,
+        min = -50,
+        max = 50,
+        step = 1
+    },
+    textSize = {
+        text = 'Text Scale',
+        decimals = 1,
+        default = 1,
+        min = 0.5,
+        max = 3,
+        step = 0.1
     }
 }
 

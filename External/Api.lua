@@ -3,11 +3,17 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
 --The Advanced Raid Frames API lets you register your frames to use the indicators yourself or query aura information about units
-local API = {}
+API.Callbacks = LibStub('CallbackHandler-1.0'):New(API)
+
+----[[
+-- Every time any valid unit (player, party#1-4, raid#1-40) gets an UNIT_AURA event, Advanced Raid Frames will throw a HARF_UNIT_AURA event sending the current updated aura data
+-- It will be a table of the form { auraName = <secret>auraData }, simply use end points that accept secret values to display the data
+----]]
 
 --Returns a table with all the internal names for the supported specs
 function API.ListSupportedSpecs()
@@ -31,7 +37,7 @@ function API.ListAurasForSpec(specName)
     end
 end
 
---Gets a list of all the aura data currently active for a unit (this doesn't cause api calls, everything is in the addon)
+--Gets a list of all the aura data currently active for a unit (this doesn't cause blizzard api calls, everything is in the addon)
 function API.GetUnitAuras(unit)
     local unitList = Util.GetRelevantList()
     local elements = unitList[unit]
@@ -86,9 +92,5 @@ function API.UnregisterFrameForUnit(unit, index)
         return false
     end
 end
-
---TODO: Add these functions:
-----RegisterAuraForUnit(unit, buffName, callback) - Pass a unit and a buff and the callback gets called when the status of that buff changes on the unit
-----GetAuraInstances(buffName) - Pass a buff name and get back a list of all group units that currently have that aura with their aura data
 
 AdvancedRaidFramesAPI = API

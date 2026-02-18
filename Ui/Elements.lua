@@ -3,6 +3,7 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
@@ -62,6 +63,25 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             iconYOffsetSlider:SetValue(savedSettings.yOffset)
         end
         table.insert(containerFrame.elements, iconYOffsetSlider)
+        local iconTextSizeSlider = Ui.CreateSlider('textSize')
+        if savedSettings and savedSettings.textSize then
+            iconTextSizeSlider:SetValue(savedSettings.textSize)
+        end
+        table.insert(containerFrame.elements, iconTextSizeSlider)
+        local iconTextToggle = Ui.CheckboxPool:Acquire()
+        iconTextToggle.setting = 'showText'
+        iconTextToggle.Text:SetText('Show Text')
+        if savedSettings and savedSettings.showText ~= nil then
+            iconTextToggle:SetChecked(savedSettings.showText)
+        end
+        table.insert(containerFrame.elements, iconTextToggle)
+        local iconTextureToggle = Ui.CheckboxPool:Acquire()
+        iconTextureToggle.setting = 'showTexture'
+        iconTextureToggle.Text:SetText('Show Texture')
+        if savedSettings and savedSettings.showTexture ~= nil then
+            iconTextureToggle:SetChecked(savedSettings.showTexture)
+        end
+        table.insert(containerFrame.elements, iconTextureToggle)
     elseif type == 'square' then
         local colorPicker = Ui.ColorPickerFramePool:Acquire()
         if savedSettings and savedSettings.Color then
@@ -90,6 +110,18 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             iconYOffsetSlider:SetValue(savedSettings.yOffset)
         end
         table.insert(containerFrame.elements, iconYOffsetSlider)
+        local iconTextSizeSlider = Ui.CreateSlider('textSize')
+        if savedSettings and savedSettings.textSize then
+            iconTextSizeSlider:SetValue(savedSettings.textSize)
+        end
+        table.insert(containerFrame.elements, iconTextSizeSlider)
+        local squareCooldownToggle = Ui.CheckboxPool:Acquire()
+        squareCooldownToggle.setting = 'showCooldown'
+        squareCooldownToggle.Text:SetText('Show Cooldown')
+        if savedSettings and savedSettings.showCooldown ~= nil then
+            squareCooldownToggle:SetChecked(savedSettings.showCooldown)
+        end
+        table.insert(containerFrame.elements, squareCooldownToggle)
     elseif type == 'bar' then
         local colorPicker = Ui.ColorPickerFramePool:Acquire()
         if savedSettings and savedSettings.Color then
@@ -120,6 +152,11 @@ function Ui.CreateIndicatorOptions(type, spec, savedSettings)
             barScaleSelector:GenerateMenu()
         end
         table.insert(containerFrame.elements, barScaleSelector)
+        local barOffset = Ui.CreateSlider('offset')
+        if savedSettings and savedSettings.Offset then
+            barOffset:SetValue(savedSettings.Offset)
+        end
+        table.insert(containerFrame.elements, barOffset)
     end
     local deleteButton = Ui.DeleteIndicatorOptionsButtonPool:Acquire()
     deleteButton.parent = containerFrame
@@ -138,6 +175,12 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                 newIcon:SetParent(newIndicatorOverlay)
                 newIcon:SetSize(indicatorData.Size, indicatorData.Size)
                 newIcon:SetPoint(indicatorData.Position, newIndicatorOverlay, indicatorData.Position, indicatorData.xOffset, indicatorData.yOffset)
+                newIcon.cooldown:SetScale(indicatorData.textSize)
+                newIcon.cooldown:SetHideCountdownNumbers(not indicatorData.showText)
+                newIcon.texture:SetShown(indicatorData.showTexture)
+                newIcon.cooldown:SetDrawSwipe(indicatorData.showTexture)
+                newIcon.cooldown:SetDrawEdge(indicatorData.showTexture)
+                newIcon.cooldown:SetDrawBling(indicatorData.showTexture)
                 table.insert(newIndicatorOverlay.elements, newIcon)
             elseif indicatorData.Type == 'square' then
                 local newSquare = Ui.SquareIndicatorPool:Acquire()
@@ -147,6 +190,9 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                 newSquare:SetSize(indicatorData.Size, indicatorData.Size)
                 newSquare:SetPoint(indicatorData.Position, newIndicatorOverlay, indicatorData.Position, indicatorData.xOffset, indicatorData.yOffset)
                 newSquare.texture:SetColorTexture(color.r, color.g, color.b, color.a)
+                newSquare.showCooldown = indicatorData.showCooldown
+                newSquare.cooldown:SetScale(indicatorData.textSize)
+                newSquare.cooldown:SetShown(indicatorData.showCooldown)
                 table.insert(newIndicatorOverlay.elements, newSquare)
             elseif indicatorData.Type == 'bar' then
                 local newBar = Ui.BarIndicatorPool:Acquire()
@@ -157,7 +203,7 @@ function Ui.CreateIndicatorOverlay(indicatorDataTable)
                 local anchorData = Util.FigureOutBarAnchors(indicatorData)
                 if anchorData.points then
                     for _, anchor in ipairs(anchorData.points) do
-                        newBar:SetPoint(anchor.point, newIndicatorOverlay, anchor.relative)
+                        newBar:SetPoint(anchor.point, newIndicatorOverlay, anchor.relative, anchorData.sizing.xOffset, anchorData.sizing.yOffset)
                     end
                 end
                 if anchorData.sizing.Orientation then

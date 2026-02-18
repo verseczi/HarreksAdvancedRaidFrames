@@ -3,6 +3,7 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
@@ -20,14 +21,29 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
         frame.elements = {}
         frame.deleteButton = nil
         frame.savedSetting = { spec = nil, index = nil }
+        frame.index = nil
         frame.text = frame:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
         frame.text:SetPoint('TOPLEFT', frame, 'TOPLEFT', 10, -10)
         frame.text:SetScale(1.3)
         frame.type = nil
-        frame:SetHeight(80)
         frame.SetupText = function(self, index)
+            self.index = index
+            local spell
+            local dataTable = SavedIndicators[self.savedSetting.spec][self.savedSetting.index]
+            if dataTable and dataTable.Spell then
+                spell = dataTable.Spell
+            end
             if self.type then
-                self.text:SetText(index .. '. ' .. Data.indicatorTypes[self.type].display)
+                local text = index .. '. ' .. Data.indicatorTypes[self.type].display
+                if spell then
+                    text = text .. ' - '
+                    local texture = Data.textures[spell]
+                    if texture then
+                        text = text .. '|T' .. texture .. ':16|t '
+                    end
+                    text = text .. spell
+                end
+                self.text:SetText(text)
             end
         end
         frame.AnchorElements = function(self)
@@ -36,6 +52,12 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                 element:SetParent(self)
                 local parent, point, rel, xOff, yOff
                 if index == 1 then
+                    parent = self
+                    point = 'LEFT'
+                    rel = 'LEFT'
+                    xOff = 13
+                    yOff = 10
+                elseif (index == 6 and self.type == 'icon') or (index == 7 and self.type ~= 'icon') then --i deserve to be shot
                     parent = self
                     point = 'BOTTOMLEFT'
                     rel = 'BOTTOMLEFT'
@@ -50,6 +72,8 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                     --this is a stupid hardcoded fix to make selectors line up when icons don't have a color picker
                     if self.type == 'icon' and index == 2 then
                         xOff = 35
+                    elseif self.elements[index - 1].type == 'Checkbox' then
+                        xOff = 60
                     end
                 end
                 element:SetPoint(point, parent, rel, xOff, yOff)
@@ -100,12 +124,12 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                             dataTable.Position = control.selectedOption
                         elseif control.type == 'Slider' and control.sliderType == 'iconSize' then
                             dataTable.Size = control:GetValue()
-                        elseif control.type == 'Slider' and control.sliderType == 'xOffset' then
-                            dataTable.xOffset = control:GetValue()
-                        elseif control.type == 'Slider' and control.sliderType == 'yOffset' then
-                            dataTable.yOffset = control:GetValue()
+                        elseif control.type == 'Slider' then
+                            dataTable[control.sliderType] = control:GetValue()
                         elseif control.type == 'SpellSelector' then
                             dataTable.Spell = control.selectedOption
+                        elseif control.type == 'Checkbox' then
+                            dataTable[control.setting] = control:GetChecked()
                         end
                     end
                 elseif self.type == 'square' then
@@ -118,10 +142,10 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                             dataTable.Position = control.selectedOption
                         elseif control.type == 'Slider' and control.sliderType == 'iconSize' then
                             dataTable.Size = control:GetValue()
-                        elseif control.type == 'Slider' and control.sliderType == 'xOffset' then
-                            dataTable.xOffset = control:GetValue()
-                        elseif control.type == 'Slider' and control.sliderType == 'yOffset' then
-                            dataTable.yOffset = control:GetValue()
+                        elseif control.type == 'Slider' then
+                            dataTable[control.sliderType] = control:GetValue()
+                        elseif control.type == 'Checkbox' then
+                            dataTable[control.setting] = control:GetChecked()
                         elseif control.type == 'SpellSelector' then
                             dataTable.Spell = control.selectedOption
                         end
@@ -140,11 +164,17 @@ Ui.ContainerFramePool = CreateFramePool('Frame', nil, 'InsetFrameTemplate3',
                             dataTable.Orientation = control.selectedOption
                         elseif control.type == 'Slider' and control.sliderType == 'barSize' then
                             dataTable.Size = control:GetValue()
+                        elseif control.type == 'Slider' and control.sliderType == 'offset' then
+                            dataTable.Offset = control:GetValue()
                         elseif control.type == 'SpellSelector' then
                             dataTable.Spell = control.selectedOption
                         end
                     end
                 end
+                if self.index then
+                    self:SetupText(self.index)
+                end
+                Util.MapOutUnits()
                 local designer = Ui.GetDesignerFrame()
                 designer.RefreshPreview()
             end
@@ -331,7 +361,7 @@ Ui.SliderPool = CreateFramePool('Slider', nil, 'UISliderTemplateWithLabels',
         frame.Current:SetWidth(frame.High:GetWidth())
         frame.Current:SetPoint('TOP', frame, 'BOTTOM')
         frame:SetScript('OnValueChanged', function(self, value)
-            self.Current:SetText(value)
+            self.Current:SetText(Util.FormatForDisplay(value))
             local parent = self:GetParent()
             if parent then
                 parent:UpdateOptionsData()
@@ -355,6 +385,30 @@ Ui.SliderPool = CreateFramePool('Slider', nil, 'UISliderTemplateWithLabels',
     end
 )
 
+Ui.CheckboxPool = CreateFramePool('CheckButton', nil, 'InterfaceOptionsCheckButtonTemplate',
+    function(_, frame)
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent()
+        frame.setting = nil
+        frame.Text:SetText("")
+    end, false,
+    function(frame)
+        frame.type = 'Checkbox'
+        frame.setting = nil
+        frame:SetScale(1.2)
+        frame:SetScript('OnClick', function(self)
+            local parent = self:GetParent()
+            if parent then
+                parent:UpdateOptionsData()
+            end
+        end)
+        frame.Release = function(self)
+            Ui.CheckboxPool:Release(self)
+        end
+    end
+)
+
 --All indicators are created inside a container, the container is then anchored to the frame to show the indicators on top of it
 Ui.IndicatorOverlayPool = CreateFramePool('Frame', UIParent, nil,
     function(_, frame)
@@ -366,7 +420,7 @@ Ui.IndicatorOverlayPool = CreateFramePool('Frame', UIParent, nil,
     function(frame)
         frame.elements = {}
         frame.unit = nil
-        frame:SetFrameStrata('DIALOG')
+        frame:SetFrameStrata('MEDIUM')
         frame.ReleaseElements = function(self)
             for _, element in ipairs(frame.elements) do
                 element:Release()
@@ -457,16 +511,39 @@ Ui.SquareIndicatorPool = CreateFramePool('Frame', nil, nil,
     function(frame)
         frame.texture = frame:CreateTexture(nil, 'ARTWORK')
         frame.texture:SetAllPoints()
+        frame.cooldown = CreateFrame('Cooldown', nil, frame, 'CooldownFrameTemplate')
+        frame.cooldown:SetAllPoints()
+        frame.cooldown:SetReverse(true)
+        frame.cooldown:Hide()
         frame.type = 'SquareIndicator'
         frame.spell = nil
         frame.UpdateIndicator = function(self, unit, auraData)
             if self.spell and auraData[self.spell] then
+                if self.showCooldown then
+                    local aura = auraData[self.spell]
+                    local duration = C_UnitAuras.GetAuraDuration(unit, aura.auraInstanceID)
+                    self.cooldown:SetCooldownFromDurationObject(duration)
+                    self.cooldown:Show()
+                else
+                    self.cooldown:Hide()
+                end
                 self:Show()
             else
                 self:Hide()
             end
         end
         frame.ShowPreview = function(self)
+            if self.showCooldown then
+                self.cooldown:SetCooldown(GetTime(), 30)
+                self.cooldown:Show()
+            else
+                self.cooldown:Hide()
+            end
+            if not self.previewTimer then
+                self.previewTimer = C_Timer.NewTicker(30, function()
+                    self:ShowPreview()
+                end)
+            end
             self:Show()
         end
         frame.Release = function(self)
@@ -562,21 +639,23 @@ Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, 'BackdropTemplate',
             local unitList = Util.GetRelevantList()
             local elements = unitList[unit]
             local shouldBeColored = false
-            if self.spell and auraData[self.spell] and elements then
-                elements.isColored = true
-                elements.recolor = self.color
-                shouldBeColored = true
-            else
-                elements.isColored = false
-                elements.recolor = nil
-            end
-            local coloringFunc = overlay.coloringFunc
-            if coloringFunc and type(coloringFunc) == 'function' then
-                local unitFrame = elements.extraFrames[overlay.extraFrameIndex].frame
-                coloringFunc(unitFrame, shouldBeColored, self.color)
-            else
-                local unitFrame = _G[elements.frame]
-                self:DefaultCallback(unitFrame, shouldBeColored)
+            if elements then
+                if self.spell and auraData[self.spell] and elements then
+                    elements.isColored = true
+                    elements.recolor = self.color
+                    shouldBeColored = true
+                else
+                    elements.isColored = false
+                    elements.recolor = nil
+                end
+                local coloringFunc = overlay.coloringFunc
+                if coloringFunc and type(coloringFunc) == 'function' then
+                    local unitFrame = elements.extraFrames[overlay.extraFrameIndex].frame
+                    coloringFunc(unitFrame, shouldBeColored, self.color)
+                else
+                    local unitFrame = _G[elements.frame]
+                    self:DefaultCallback(unitFrame, shouldBeColored)
+                end
             end
         end
         frame.ShowPreview = function(self)

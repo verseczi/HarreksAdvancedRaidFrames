@@ -30,8 +30,6 @@ Advanced Raid Frames works with default and addon frames to improve functionalit
 - Rewind
 - DreamFlight
 
-- Casting Temporal Anomaly and immediately Dreamflying can cause issues
-- Dreamflight hots might not track properly for very long flights
 
 ### AugmentationEvoker
 - Prescience

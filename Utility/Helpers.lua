@@ -3,6 +3,7 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
@@ -166,10 +167,7 @@ end
 function Util.MapOutUnits()
     --Refresh some player data too
     Util.UpdatePlayerSpec()
-    --Will use this to add handling for pain sup applying atonement in the future
-    if Data.playerSpec == 'MistweaverMonk' then
-        Data.state.extras.moh = C_SpellBook.IsSpellKnown(450529) and true or false
-    end
+
     --Remove all current data on the unit lists
     for groupType, units in pairs(Data.unitList) do
         for unit, _ in pairs(units) do
@@ -206,9 +204,9 @@ function Util.MapOutUnits()
         end
     end
     --We check the frames for the party or raid to find where each unit is
-    local groupType = IsInRaid() and 'raid' or 'party'
+    local currentGroupType = IsInRaid() and 'raid' or 'party'
     local unitList = Util.GetRelevantList()
-    local frameList = Data.frameList[groupType]
+    local frameList = Data.frameList[currentGroupType]
     for _, frameString in ipairs(frameList) do
         local frame = _G[frameString]
         if frame and frame.unit then
@@ -235,6 +233,12 @@ function Util.MapOutUnits()
             end
         end
     end
+
+    for _, units in pairs(Data.unitList) do
+        for unit, _ in pairs(units) do
+            if UnitIsVisible(unit) then Core.UpdateAuraStatus(unit) end
+        end
+    end
 end
 
 function Util.UpdatePlayerSpec()
@@ -243,29 +247,32 @@ function Util.UpdatePlayerSpec()
     Data.playerSpec = Data.specMap[class .. '_' .. spec]
 end
 
---It says "is from player" but really we are checking that it passes the full raid in combat filter
---The second param is auraInstanceId, not the full aura, same for all the other checks
+--it says "is from player" but really we are checking it is not a trash buff
 function Util.IsAuraFromPlayer(unit, auraId)
-    local isFromPlayer = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID_IN_COMBAT')
-    return isFromPlayer
-end
-
---This is an extra function for weirdo buffs, attempting to track things not in raid in combat
-function Util.DoesAuraPassRaidFilter(unit, auraId)
-    local passesRaidFilter = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID')
-    return passesRaidFilter
-end
-
---Some spells are in raid in combat but not in raid, this is a quick check to know if this is one of them
-function Util.DoesAuraDifferBetweenFilters(unit, auraId)
+    local passesRic = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID_IN_COMBAT')
     local passesRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID')
-    local passesRaidInCombat = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|RAID_IN_COMBAT')
-    return passesRaid ~= passesRaidInCombat
+    return passesRic or passesRaid
 end
 
-function Util.IsExternalDefensive(unit, auraId)
-    local isExternal = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraId, 'PLAYER|HELPFUL|EXTERNAL_DEFENSIVE')
-    return isExternal
+--We sus out the buff, match the info we can get from it
+function Util.MatchAuraInfo(unit, aura)
+    local passesRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'PLAYER|HELPFUL|RAID')
+    local passesRic = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'PLAYER|HELPFUL|RAID_IN_COMBAT')
+    local passesExt = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'PLAYER|HELPFUL|EXTERNAL_DEFENSIVE')
+    local passesDisp = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'PLAYER|HELPFUL|RAID_PLAYER_DISPELLABLE')
+    local pointCount = #aura.points
+
+    local auraList = Data.specInfo[Data.playerSpec].auras
+    for buff, buffData in pairs(auraList) do
+        local matchesPoints = buffData.points == pointCount
+        local matchesRaid = buffData.raid == passesRaid
+        local matchesRic = buffData.ric == passesRic
+        local matchesExt = buffData.ext == passesExt
+        local matchesDisp = buffData.disp == passesDisp
+        if matchesPoints and matchesRaid and matchesRic and matchesExt and matchesDisp then
+            return buff
+        end
+    end
 end
 
 function Util.MapEngineFunctions()

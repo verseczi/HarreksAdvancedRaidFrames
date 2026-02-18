@@ -47,10 +47,23 @@ if Grid2 then
                 end
             end
 
+            function status:GetBorder()
+                return 0
+            end
+
+            function status:GetDuration(unit)
+                local aura = self.auras[unit]
+                if aura and aura.auraInstanceID then
+                    local duration = C_UnitAuras.GetAuraDuration(unit, aura.auraInstanceID)
+                    return duration:GetTotalDuration()
+                end
+            end
+
             function status:GetExpirationTime(unit)
                 local aura = self.auras[unit]
-                if aura and aura.expirationTime then
-                    return aura.expirationTime
+                if aura and aura.auraInstanceID then
+                    local duration = C_UnitAuras.GetAuraDuration(unit, aura.auraInstanceID)
+                    return duration:GetEndTime()
                 end
             end
 
@@ -66,7 +79,7 @@ if Grid2 then
         end)
 
             Grid2.setupFunc[spell] = function(baseKey, dbx)
-                Grid2:RegisterStatus(status, {"color", "icon", "text"}, baseKey, dbx)
+                Grid2:RegisterStatus(status, {"color", "icon", "text", "bar"}, baseKey, dbx)
                 return status
             end
 

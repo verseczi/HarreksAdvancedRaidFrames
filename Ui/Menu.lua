@@ -3,15 +3,16 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
-function Ui.GenerateMinimapIcon()
+function Ui.GenerateMinimapIcon(categoryId)
     local HarfLDB = LibStub("LibDataBroker-1.1"):NewDataObject("HARF", {
         type = 'data source',
         text = 'Harrek\'s Advanced Raid Frames',
         icon = 'Interface/Addons/HarreksAdvancedRaidFrames/Assets/harrek-logo.png',
-        OnClick = function() Settings.OpenToCategory(Options.lastCategory) end
+        OnClick = function() Settings.OpenToCategory(categoryId) end
     })
     local LibDBIcon = LibStub("LibDBIcon-1.0")
     LibDBIcon:Register('HARF', HarfLDB, Options.minimapButton)
@@ -197,13 +198,10 @@ function Ui.CreateOptionsPanel(optionsTable)
     local addonsSubcategory = Settings.RegisterCanvasLayoutSubcategory(category, addonsPanel, 'Other Frames')
     Settings.RegisterAddOnCategory(addonsSubcategory)
 
-    --TODO: button opening to last opened menu is not working
-    if not Options.lastCategory then Options.lastCategory = category.ID end
-
     SLASH_HARREKSADVANCEDRAIDFRAMES1 = "/harf"
     SlashCmdList.HARREKSADVANCEDRAIDFRAMES = function()
-        Settings.OpenToCategory(Options.lastCategory)
+        Settings.OpenToCategory(category.ID)
     end
 
-    Ui.GenerateMinimapIcon()
+    Ui.GenerateMinimapIcon(category.ID)
 end

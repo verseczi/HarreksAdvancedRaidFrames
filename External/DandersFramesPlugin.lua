@@ -1,7 +1,7 @@
 local unitIndexMap = {}
 
 local recoloringFunc = function(frame, shouldBeColored, color)
-    if DandersFrames_IsReady and DandersFrames_IsReady() then
+    if frame and DandersFrames_IsReady and DandersFrames_IsReady() then
         if shouldBeColored then
             DandersFrames_HighlightUnit(frame.unit, color.r, color.g, color.b, color.a)
         else
@@ -32,15 +32,19 @@ groupTracker:SetScript('OnEvent', function()
             for i = 1, 4 do
                 local unit = 'party' .. i
                 local unitFrame = DandersFrames_GetFrameForUnit(unit)
-                local index = AdvancedRaidFramesAPI.RegisterFrameForUnit(unit, unitFrame, recoloringFunc)
-                unitIndexMap[unit] = index
+                if unitFrame then
+                    local index = AdvancedRaidFramesAPI.RegisterFrameForUnit(unit, unitFrame, recoloringFunc)
+                    unitIndexMap[unit] = index
+                end
             end
             --Raid
             for i = 1, 40 do
                 local unit = 'raid' .. i
                 local unitFrame = DandersFrames_GetFrameForUnit(unit)
-                local index = AdvancedRaidFramesAPI.RegisterFrameForUnit(unit, unitFrame, recoloringFunc)
-                unitIndexMap[unit] = index
+                if unitFrame then
+                    local index = AdvancedRaidFramesAPI.RegisterFrameForUnit(unit, unitFrame, recoloringFunc)
+                    unitIndexMap[unit] = index
+                end
             end
         end
 

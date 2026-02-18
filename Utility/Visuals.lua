@@ -3,6 +3,7 @@ local Data = NS.Data
 local Ui = NS.Ui
 local Util = NS.Util
 local Core = NS.Core
+local API = NS.API
 local SavedIndicators = HARFDB.savedIndicators
 local Options = HARFDB.options
 
@@ -10,13 +11,13 @@ function Util.UpdateIndicatorsForUnit(unit)
     local unitList = Util.GetRelevantList()
     local auras = Data.state.auras[unit]
     local elements = unitList[unit]
-    if not elements.auras then elements.auras = {} end
-    wipe(elements.auras)
-    for instanceId, buff in pairs(auras) do
-        elements.auras[buff] = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, instanceId)
-    end
-
     if elements then
+        if not elements.auras then elements.auras = {} end
+        wipe(elements.auras)
+        for instanceId, buff in pairs(auras or {}) do
+            elements.auras[buff] = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, instanceId)
+        end
+
         if elements.indicatorOverlay then
             elements.indicatorOverlay:UpdateIndicators(elements.auras)
         end
@@ -27,6 +28,7 @@ function Util.UpdateIndicatorsForUnit(unit)
                 end
             end
         end
+        API.Callbacks:Fire('HARF_UNIT_AURA', unit, elements.auras)
     end
 end
 
@@ -39,8 +41,12 @@ function Util.FigureOutBarAnchors(barData)
 
     if barData.Orientation == 'Vertical' then
         sizing.Orientation = 'VERTICAL'
+        sizing.xOffset = barData.Offset
+        sizing.yOffset = 0
     else
         sizing.Orientation = 'HORIZONTAL'
+        sizing.xOffset = 0
+        sizing.yOffset = barData.Offset
     end
 
     if barData.Position == 'TOPRIGHT' then
@@ -117,18 +123,24 @@ function Util.GetDefaultSettingsForIndicator(type)
         data.Size = 25
         data.xOffset = 0
         data.yOffset = 0
+        data.textSize = 1
+        data.showText = true
+        data.showTexture = true
     elseif type == 'square' then
         data.Color = { r = 0, g = 1, b = 0, a = 1 }
         data.Position = 'CENTER'
         data.Size = 25
         data.xOffset = 0
         data.yOffset = 0
+        data.textSize = 1
+        data.showCooldown = false
     elseif type == 'bar' then
         data.Color = { r = 0, g = 1, b = 0, a = 1 }
         data.Position = 'TOPRIGHT'
         data.Scale = 'Full'
         data.Orientation = 'Horizontal'
         data.Size = 15
+        data.offset = 0
     end
     for spell, _ in pairs(Data.specInfo[Options.editingSpec].auras) do
         data.Spell = spell

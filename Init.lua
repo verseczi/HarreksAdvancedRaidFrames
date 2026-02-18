@@ -4,7 +4,8 @@ NS.Data = {}
 NS.Ui = {}
 NS.Util = {}
 NS.Core = {}
-NS.Version = '2.0.0'
+NS.API = {}
+NS.Version = '2.1.0'
 
 --Initialize saved variables
 HARFDB = HARFDB or {}
