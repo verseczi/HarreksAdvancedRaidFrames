@@ -15,7 +15,9 @@ function Core.InstallTrackers()
                 local tracker = CreateFrame('Frame')
                 tracker:SetSize(25, 25)
                 tracker:SetScript('OnEvent', function(_, _, unitId, auraUpdateInfo)
-                    Core.UpdateAuraStatus(unitId, auraUpdateInfo)
+                    if Data.playerSpec then
+                        Core.UpdateAuraStatus(unitId, auraUpdateInfo)
+                    end
                 end)
                 tracker:RegisterUnitEvent('UNIT_AURA', unit)
                 elements.tracker = tracker
@@ -50,9 +52,11 @@ function Core.InstallTrackers()
         stateTracker:RegisterEvent('GROUP_ROSTER_UPDATE')
         stateTracker:SetScript('OnEvent', function(self, event)
             if event == 'PLAYER_LOGIN' then
+                Util.DebugData(Data.state, 'State')
+                Util.DebugData(Data.unitList, 'Units')
+                Util.DebugData(SavedIndicators, 'Indicators')
                 Util.UpdatePlayerSpec()
                 Util.MapEngineFunctions()
-                Data.editingSpec = Data.playerSpec
 
                 Ui.CreateOptionsPanel(Data.settings)
 

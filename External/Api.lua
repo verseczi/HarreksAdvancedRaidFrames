@@ -86,7 +86,7 @@ function API.UnregisterFrameForUnit(unit, index)
         if extraFrames[index].indicatorOverlay then
             extraFrames[index].indicatorOverlay:Delete()
         end
-        table.remove(extraFrames[index])
+        table.remove(extraFrames, index)
         return true
     else
         return false

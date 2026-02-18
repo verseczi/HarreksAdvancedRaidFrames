@@ -186,7 +186,11 @@ function Util.MapOutUnits()
 
             if #elements.extraFrames > 0 then
                 for _, extraFrameData in ipairs(elements.extraFrames) do
-                    if extraFrameData.frame and not extraFrameData.indicatorOverlay then
+                    if extraFrameData.frame then
+                        if extraFrameData.indicatorOverlay then
+                            extraFrameData.indicatorOverlay:Delete()
+                            extraFrameData.indicatorOverlay = nil
+                        end
                         local indicatorOverlay = Ui.CreateIndicatorOverlay(SavedIndicators[Data.playerSpec])
                         if indicatorOverlay then
                             indicatorOverlay.unit = unit
@@ -234,9 +238,11 @@ function Util.MapOutUnits()
         end
     end
 
-    for _, units in pairs(Data.unitList) do
-        for unit, _ in pairs(units) do
-            if UnitIsVisible(unit) then Core.UpdateAuraStatus(unit) end
+    if Data.playerSpec then
+        for _, units in pairs(Data.unitList) do
+            for unit, _ in pairs(units) do
+                if UnitIsVisible(unit) then Core.UpdateAuraStatus(unit) end
+            end
         end
     end
 end

@@ -21,7 +21,7 @@ Data.specInfo = {
             Rewind = { points = 4, raid = true, ric = true, ext = false, disp = false }, -- ID: 363534
             DreamFlight = { points = 2, raid = false, ric = true, ext = false, disp = false }, -- ID: 363502
             --DreamFlightSelf = { points = 9, raid = true, ric = false, ext = false, disp = false }, -- ID: 359816
-            Lifebind = { points = 1, raid = false, ric = true, ext = false, disp = false }, -- ID: 373267
+            Lifebind = { points = 1 - 2, raid = false, ric = true, ext = false, disp = false }, -- ID: 373267
             VerdantEmbrace = { points = 1, raid = false, ric = true, ext = false, disp = false }, -- ID: 409895
         },
         casts = {

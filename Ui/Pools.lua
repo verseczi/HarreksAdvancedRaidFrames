@@ -412,15 +412,17 @@ Ui.CheckboxPool = CreateFramePool('CheckButton', nil, 'InterfaceOptionsCheckButt
 --All indicators are created inside a container, the container is then anchored to the frame to show the indicators on top of it
 Ui.IndicatorOverlayPool = CreateFramePool('Frame', UIParent, nil,
     function(_, frame)
+        frame:Hide()
+        frame:SetParent(UIParent)
+        frame:SetFrameStrata('MEDIUM')
+        frame:SetFrameLevel(0)
         frame:ReleaseElements()
         frame.unit = nil
         frame:ClearAllPoints()
-        frame:Hide()
     end, false,
     function(frame)
         frame.elements = {}
         frame.unit = nil
-        frame:SetFrameStrata('MEDIUM')
         frame.ReleaseElements = function(self)
             for _, element in ipairs(frame.elements) do
                 element:Release()
@@ -436,13 +438,20 @@ Ui.IndicatorOverlayPool = CreateFramePool('Frame', UIParent, nil,
         frame.extraFrameIndex = nil
         frame.ShowPreview = function(self)
             for _, element in ipairs(self.elements) do
-                element:SetScale(1.3)
                 element:ShowPreview()
             end
             self:Show()
         end
         frame.AttachToFrame = function(self, unitFrame)
+            if not unitFrame then return end
+            self:SetParent(unitFrame)
             self:SetAllPoints(unitFrame)
+            if unitFrame.GetFrameStrata and unitFrame.GetFrameLevel then
+                local parentStrata = unitFrame:GetFrameStrata()
+                local parentLevel = unitFrame:GetFrameLevel()
+                if parentStrata then self:SetFrameStrata(parentStrata) end
+                if parentLevel then self:SetFrameLevel(parentLevel + 5) end
+            end
         end
         frame.Delete = function(self)
             Ui.IndicatorOverlayPool:Release(self)
@@ -483,7 +492,9 @@ Ui.IconIndicatorPool = CreateFramePool('Frame', nil, nil,
                 local aura = auraData[self.spell]
                 local duration = C_UnitAuras.GetAuraDuration(unit, aura.auraInstanceID)
                 self.texture:SetTexture(aura.icon)
-                self.cooldown:SetCooldownFromDurationObject(duration)
+                if duration then
+                    self.cooldown:SetCooldownFromDurationObject(duration)
+                end
                 self:Show()
             else
                 self:Hide()
@@ -522,8 +533,10 @@ Ui.SquareIndicatorPool = CreateFramePool('Frame', nil, nil,
                 if self.showCooldown then
                     local aura = auraData[self.spell]
                     local duration = C_UnitAuras.GetAuraDuration(unit, aura.auraInstanceID)
-                    self.cooldown:SetCooldownFromDurationObject(duration)
-                    self.cooldown:Show()
+                    if duration then
+                        self.cooldown:SetCooldownFromDurationObject(duration)
+                        self.cooldown:Show()
+                    end
                 else
                     self.cooldown:Hide()
                 end
@@ -607,6 +620,7 @@ Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, 'BackdropTemplate',
         frame:Hide()
         frame:ClearAllPoints()
         frame:SetParent()
+        frame.coloringFunc = nil
         frame.spell = nil
     end, false,
     function(frame)
@@ -638,9 +652,10 @@ Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, 'BackdropTemplate',
             local overlay = self:GetParent()
             local unitList = Util.GetRelevantList()
             local elements = unitList[unit]
-            local shouldBeColored = false
             if elements then
-                if self.spell and auraData[self.spell] and elements then
+                --Util.DumpData(elements)
+                local shouldBeColored = false
+                if self.spell and auraData[self.spell] then
                     elements.isColored = true
                     elements.recolor = self.color
                     shouldBeColored = true
@@ -649,7 +664,7 @@ Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, 'BackdropTemplate',
                     elements.recolor = nil
                 end
                 local coloringFunc = overlay.coloringFunc
-                if coloringFunc and type(coloringFunc) == 'function' then
+                if coloringFunc and type(coloringFunc) == 'function' and elements.extraFrames and elements.extraFrames[overlay.extraFrameIndex] then
                     local unitFrame = elements.extraFrames[overlay.extraFrameIndex].frame
                     coloringFunc(unitFrame, shouldBeColored, self.color)
                 else
@@ -659,6 +674,7 @@ Ui.HealthColorIndicatorPool = CreateFramePool('Frame', nil, 'BackdropTemplate',
             end
         end
         frame.ShowPreview = function(self)
+            self:SetBackdropBorderColor(self.color.r, self.color.g, self.color.b)
             self:Show()
         end
         frame.Release = function(self)

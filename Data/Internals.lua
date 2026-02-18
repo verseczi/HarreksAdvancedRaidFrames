@@ -82,7 +82,7 @@ Data.indicatorTypes = {
         display = 'Bar'
     },
     healthColor = {
-        display = 'Health Color'
+        display = 'Border'
     }
 }
 

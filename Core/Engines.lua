@@ -82,7 +82,7 @@ function Core.ParsePreservationEvokerBuffs(unit, updateInfo)
                             veTable.timer = false
                             if #veTable.buffs == 2 then
                                 unitAuras[veTable.buffs[1]] = 'Lifebind'
-                            else
+                            elseif #veTable.buffs == 1 then
                                 if UnitIsUnit(unit, 'player') then
                                     unitAuras[veTable.buffs[1]] = 'Lifebind'
                                 end

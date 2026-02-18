@@ -153,6 +153,7 @@ function Ui.GetDesignerFrame()
 
             frame.optFrame.savedSetting.spec = Options.editingSpec
             frame.optFrame.savedSetting.index = data.index
+            frame.optFrame:LoadSavedSettings()
             frame.optFrame:SetupText(data.index)
         end)
 
@@ -192,10 +193,6 @@ function Ui.GetDesignerFrame()
 
         designer.RefreshScrollBox()
         designer.RefreshPreview()
-
-        designer:SetScript('OnHide', function()
-            Util.MapOutUnits()
-        end)
     end
     return Ui.DesignerFrame
 end
